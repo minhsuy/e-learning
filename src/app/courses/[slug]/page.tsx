@@ -16,6 +16,7 @@ import { ApiCourseDetail, ApiCourseChapterLesson } from '@/types/course';
 import { ApiRatingItem } from '@/types/rating';
 import { AppApiError } from '@/types/api';
 import { CourseRatingSection } from '@/components/course/course-rating-section';
+import { SimilarCoursesSection } from '@/components/course/similar-courses-section';
 import { lessonService } from '@/services/lesson.service';
 import { DemoLessonModal, DemoLessonItem } from '@/components/course/demo-lesson-modal';
 import { cn } from '@/lib/utils';
@@ -736,10 +737,12 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
       : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
 
   const categoryName = course.category?.name || 'Khóa học';
+  const FALLBACK_COURSE_IMAGE =
+    'https://plus.unsplash.com/premium_photo-1720287601920-ee8c503af775?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D';
   const thumbnailImage =
-    course.image && course.image.trim()
+    course.image && course.image.trim() && course.image !== 'null' && course.image !== 'undefined'
       ? course.image
-      : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&auto=format&fit=crop&q=80';
+      : FALLBACK_COURSE_IMAGE;
 
   const formattedUpdateDate = course.updatedAt
     ? new Date(course.updatedAt).toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' })
@@ -939,6 +942,9 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
                     <img
                       src={thumbnailImage}
                       alt="Video Preview Poster"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
+                      }}
                       className="w-full h-full object-cover opacity-85 group-hover:scale-102 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30" />
@@ -1641,6 +1647,16 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
             </div>
           </div>
         </div>
+
+        {/* Similar Courses Section (REC-10) */}
+        {courseId && (
+          <SimilarCoursesSection
+            courseId={courseId}
+            currentCourseSlug={slug}
+            limit={6}
+            className="mt-12 pt-8 border-t border-[#f1ebff] dark:border-[#2f2742]"
+          />
+        )}
       </div>
 
       {/* Demo Lesson Preview Modal */}

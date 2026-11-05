@@ -22,6 +22,10 @@ import { quizService } from '@/services/quiz.service';
 import { ApiQuizDetail } from '@/types/quiz';
 import { videoService } from '@/services/video.service';
 import { LessonPlaybackData } from '@/types/video';
+import { lessonAiContentService } from '@/services/lesson-ai-content.service';
+import { codingExerciseService } from '@/services/coding-exercise.service';
+import { LessonSummaryViewer } from '@/components/common/lesson-summary-viewer';
+import { StudentCodingView } from '@/components/coding-exercise/student-coding-view';
 import { Loader2 } from 'lucide-react';
 import { QuizView } from '@/components/quiz/quiz-view';
 import { CourseRatingSection } from '@/components/course/course-rating-section';
@@ -30,6 +34,9 @@ import { LessonComments } from '@/components/course/lesson-comments';
 interface ChapterWithLessons extends ApiCourseChapter {
   fullLessons: ApiLessonItem[];
 }
+
+const VALID_CLASSROOM_TABS = ['overview', 'summary', 'quiz', 'coding', 'qa', 'notes', 'reviews'] as const;
+type ClassroomTab = (typeof VALID_CLASSROOM_TABS)[number];
 
 function formatDuration(seconds?: number): string {
   if (!seconds || seconds <= 0) return '00:00';
@@ -87,8 +94,13 @@ export default function ClassroomPage() {
   // Tab & Accordion States
   const tabQuery = searchParams?.get('tab');
   const commentQuery = searchParams?.get('commentId') || searchParams?.get('comment');
-  const initialActiveTab = tabQuery === 'qa' || commentQuery ? 'qa' : (tabQuery as 'overview' | 'quiz' | 'qa' | 'notes' | 'reviews') || 'overview';
-  const [activeTab, setActiveTab] = useState<'overview' | 'quiz' | 'qa' | 'notes' | 'reviews'>(initialActiveTab);
+  const initialActiveTab: ClassroomTab =
+    tabQuery === 'qa' || commentQuery
+      ? 'qa'
+      : VALID_CLASSROOM_TABS.includes(tabQuery as ClassroomTab)
+      ? (tabQuery as ClassroomTab)
+      : 'overview';
+  const [activeTab, setActiveTab] = useState<ClassroomTab>(initialActiveTab);
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
 
   // Synchronize active tab if navigated via notification (tab=qa or commentId present)
@@ -103,6 +115,8 @@ export default function ClassroomPage() {
       const commentParam = searchParams?.get('commentId') || searchParams?.get('comment');
       if (tabParam === 'qa' || commentParam) {
         setActiveTab('qa');
+      } else if (tabParam && VALID_CLASSROOM_TABS.includes(tabParam as ClassroomTab)) {
+        setActiveTab(tabParam as ClassroomTab);
       }
     };
 
@@ -112,6 +126,11 @@ export default function ClassroomPage() {
       isCancelled = true;
     };
   }, [searchParams]);
+
+  // Lesson Summary & Coding Exercise States
+  const [lessonSummary, setLessonSummary] = useState<string | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(false);
+  const [codingExerciseCount, setCodingExerciseCount] = useState<number>(0);
 
   // Quiz States
   const [activeQuiz, setActiveQuiz] = useState<ApiQuizDetail | null>(null);
@@ -186,6 +205,58 @@ export default function ClassroomPage() {
     }
 
     loadLessonQuiz();
+
+    return () => {
+      isCurrent = false;
+      controller.abort();
+    };
+  }, [activeLesson]);
+
+  // Fetch Summary and Coding Exercises for Active Lesson
+  useEffect(() => {
+    const lessonId = activeLesson ? (activeLesson.id || activeLesson._id) : undefined;
+    let isCurrent = true;
+    const controller = new AbortController();
+
+    async function loadLessonAiAndCoding() {
+      if (!lessonId) {
+        if (isCurrent) {
+          setLessonSummary(null);
+          setCodingExerciseCount(0);
+        }
+        return;
+      }
+
+      setIsLoadingSummary(true);
+
+      // Load Lesson Summary
+      try {
+        const aiRes = await lessonAiContentService.getLessonAiContent(lessonId, {
+          signal: controller.signal,
+        });
+        if (isCurrent) {
+          setLessonSummary(aiRes?.data?.summary || null);
+        }
+      } catch {
+        if (isCurrent) setLessonSummary(null);
+      } finally {
+        if (isCurrent) setIsLoadingSummary(false);
+      }
+
+      // Load Published Coding Exercises Count
+      try {
+        const codeRes = await codingExerciseService.getPublicExercisesByLesson(lessonId, {
+          signal: controller.signal,
+        });
+        if (isCurrent) {
+          setCodingExerciseCount(codeRes?.data?.length || 0);
+        }
+      } catch {
+        if (isCurrent) setCodingExerciseCount(0);
+      }
+    }
+
+    void loadLessonAiAndCoding();
 
     return () => {
       isCurrent = false;
@@ -1130,6 +1201,17 @@ export default function ClassroomPage() {
                                         Quiz
                                       </span>
                                     )}
+                                    {isCurrent && codingExerciseCount > 0 && (
+                                      <span
+                                        className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                          isCurrent
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                        }`}
+                                      >
+                                        Code
+                                      </span>
+                                    )}
                                     <span
                                       className={`text-[11px] ${
                                         isCurrent ? 'text-white/80' : 'text-[#7c7483] dark:text-[#8d8496]'
@@ -1411,6 +1493,16 @@ export default function ClassroomPage() {
                   <span>{isActiveLessonCompleted ? 'Đã hoàn thành bài này' : 'Đánh dấu hoàn thành'}</span>
                 </button>
 
+                {lessonSummary && (
+                  <button
+                    onClick={() => setActiveTab('summary')}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-200 dark:border-emerald-800"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">auto_stories</span>
+                    <span>Tóm tắt bài học</span>
+                  </button>
+                )}
+
                 {activeQuiz && (
                   <button
                     onClick={() => setActiveTab('quiz')}
@@ -1418,6 +1510,16 @@ export default function ClassroomPage() {
                   >
                     <span className="material-symbols-outlined text-[18px]">quiz</span>
                     <span>Làm bài kiểm tra ({activeQuiz.questions?.length || 0} câu)</span>
+                  </button>
+                )}
+
+                {codingExerciseCount > 0 && (
+                  <button
+                    onClick={() => setActiveTab('coding')}
+                    className="px-3.5 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-blue-200 dark:border-blue-800"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">terminal</span>
+                    <span>Bài tập code ({codingExerciseCount})</span>
                   </button>
                 )}
               </div>
@@ -1458,6 +1560,20 @@ export default function ClassroomPage() {
                   <span>Tổng quan &amp; Nội dung</span>
                 </button>
                 <button
+                  onClick={() => setActiveTab('summary')}
+                  className={`px-4 py-3.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                    activeTab === 'summary'
+                      ? 'border-[#7240b8] text-[#7240b8] dark:border-[#a87ffb] dark:text-[#a87ffb]'
+                      : 'border-transparent text-[#635a72] dark:text-[#b4a9c7] hover:text-[#1c192c] dark:hover:text-[#f4eeff]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">auto_stories</span>
+                  <span>Tóm tắt bài học</span>
+                  {lessonSummary && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  )}
+                </button>
+                <button
                   onClick={() => setActiveTab('quiz')}
                   className={`px-4 py-3.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     activeTab === 'quiz'
@@ -1469,6 +1585,20 @@ export default function ClassroomPage() {
                   <span>Bài kiểm tra {activeQuiz ? `(${activeQuiz.questions?.length || 0})` : ''}</span>
                   {activeQuiz && (
                     <span className="w-2 h-2 rounded-full bg-[#7240b8] dark:bg-[#a87ffb] animate-pulse" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('coding')}
+                  className={`px-4 py-3.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                    activeTab === 'coding'
+                      ? 'border-[#7240b8] text-[#7240b8] dark:border-[#a87ffb] dark:text-[#a87ffb]'
+                      : 'border-transparent text-[#635a72] dark:text-[#b4a9c7] hover:text-[#1c192c] dark:hover:text-[#f4eeff]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">terminal</span>
+                  <span>Bài tập lập trình {codingExerciseCount > 0 ? `(${codingExerciseCount})` : ''}</span>
+                  {codingExerciseCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                   )}
                 </button>
                 <button
@@ -1554,6 +1684,18 @@ export default function ClassroomPage() {
                   </div>
                 )}
 
+                {/* TAB: SUMMARY */}
+                {activeTab === 'summary' && (
+                  <div className="flex flex-col gap-6">
+                    <LessonSummaryViewer
+                      summary={lessonSummary}
+                      isLoading={isLoadingSummary}
+                      emptyTitle="Bài học này chưa có nội dung tóm tắt"
+                      emptyDescription="Giảng viên chưa thiết lập tóm tắt AI cho bài học này. Bạn có thể xem phần nội dung chi tiết bài học hoặc video bài giảng."
+                    />
+                  </div>
+                )}
+
                 {/* TAB: QUIZ & QUESTION EXPERIENCE */}
                 {activeTab === 'quiz' && (
                   <div className="flex flex-col gap-6">
@@ -1589,6 +1731,25 @@ export default function ClassroomPage() {
                         >
                           Quay lại nội dung bài học
                         </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB: CODING EXERCISE */}
+                {activeTab === 'coding' && (
+                  <div className="flex flex-col gap-6">
+                    {activeLesson ? (
+                      <StudentCodingView
+                        lessonId={activeLesson.id || activeLesson._id || ''}
+                        isEnrolled={canAccessActiveLesson}
+                        onCompleted={() => {
+                          toast.success('Đã ghi nhận kết quả bài tập lập trình vào tiến độ học tập!');
+                        }}
+                      />
+                    ) : (
+                      <div className="py-12 text-center text-xs text-[#635a72] dark:text-[#b4a9c7]">
+                        Vui lòng chọn bài học để xem bài tập lập trình.
                       </div>
                     )}
                   </div>

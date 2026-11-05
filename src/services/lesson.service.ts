@@ -6,6 +6,7 @@ import {
   UpdateLessonDto,
   UpdateLessonResponse,
   DeleteLessonResponse,
+  ApiLessonItem,
 } from '@/types/lesson';
 
 /**
@@ -71,4 +72,19 @@ export const lessonService = {
       { signal: options?.signal }
     );
   },
+
+  /**
+   * Lấy chi tiết bài học
+   * GET /api/lessons/:id
+   */
+  async getLessonById(
+    lessonId: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<{ success: boolean; data: ApiLessonItem }> {
+    return apiClient.get<{ success: boolean; data: ApiLessonItem }>(
+      `/api/lessons/${encodeURIComponent(lessonId)}`,
+      { signal: options?.signal }
+    );
+  },
 };
+

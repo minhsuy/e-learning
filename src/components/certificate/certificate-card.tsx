@@ -17,7 +17,7 @@ interface CertificateCardProps {
 }
 
 const DEFAULT_IMAGE =
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600';
+  'https://plus.unsplash.com/premium_photo-1720287601920-ee8c503af775?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D';
 
 export const CertificateCard: React.FC<CertificateCardProps> = ({
   certificate,

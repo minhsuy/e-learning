@@ -8,14 +8,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { getRankBadgeConfig, useGamificationOverview } from '@/hooks/use-gamification';
 import { enrollmentService } from '@/services/enrollment.service';
 import { progressService } from '@/services/progress.service';
+import { PersonalizedRecommendationsSection } from '@/components/home/personalized-recommendations-section';
 import { ApiEnrollmentItem } from '@/types/enrollment';
 import { ApiCourseProgressData } from '@/types/progress';
 
 export default function HomePage() {
   const { user } = useAuth();
   const { xpSummary, streak, position, hasStudiedToday, progressPercent } = useGamificationOverview();
-  const [selectedFilter, setSelectedFilter] = useState('Tất cả');
-  const filters = ['Tất cả', 'Thịnh hành', 'Lập trình Web', 'Trí tuệ nhân tạo', 'Dữ liệu'];
 
   const [realEnrollments, setRealEnrollments] = useState<ApiEnrollmentItem[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ApiCourseProgressData>>({});
@@ -241,8 +240,16 @@ export default function HomePage() {
                         <div className="flex flex-col gap-3">
                           <div className="relative overflow-hidden rounded-lg aspect-video bg-[#f7f1ff] dark:bg-[#16131e]">
                             <img
-                              src={c.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80'}
+                              src={
+                                c.image && c.image.trim() && c.image !== 'null' && c.image !== 'undefined'
+                                  ? c.image
+                                  : 'https://plus.unsplash.com/premium_photo-1720287601920-ee8c503af775?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D'
+                              }
                               alt={c.title || 'Course thumbnail'}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  'https://plus.unsplash.com/premium_photo-1720287601920-ee8c503af775?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D';
+                              }}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                             <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-white/90 dark:bg-[#1d1926]/90 backdrop-blur-md text-[#7240b8] dark:text-[#a87ffb] text-[11px] font-bold">
@@ -387,121 +394,8 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* 3. Section: Khóa học đề xuất cho bạn (Recommended Courses) */}
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold text-[#1c192c] dark:text-[#f4eeff]">
-                    Khóa học đề xuất cho bạn
-                  </h2>
-                  <p className="text-xs md:text-sm text-[#635a72] dark:text-[#b4a9c7] mt-0.5">
-                    Dựa trên lộ trình và sở thích chuyên ngành của bạn
-                  </p>
-                </div>
-
-                {/* Filter Chips */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                  {filters.map((filter) => {
-                    const isSelected = selectedFilter === filter;
-                    return (
-                      <button
-                        key={filter}
-                        onClick={() => setSelectedFilter(filter)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                          isSelected
-                            ? 'bg-[#7240b8] text-white shadow-xs'
-                            : 'bg-[#ebe5ff] dark:bg-[#282136] text-[#1c192c] dark:text-[#f4eeff] hover:bg-[#e6dffa] dark:hover:bg-[#342a47]'
-                        }`}
-                      >
-                        {filter}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 4 Recommended Course Cards in 2x2 Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockDashboardData.recommendedCourses.map((course) => (
-                  <div
-                    key={course.id}
-                    className="group bg-white dark:bg-[#1d1926] rounded-xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between border border-[#f1ebff] dark:border-[#2f2742]"
-                  >
-                    <div className="flex flex-col gap-3">
-                      <div className="relative overflow-hidden rounded-lg aspect-[16/9] bg-[#f7f1ff] dark:bg-[#16131e]">
-                        <img
-                          src={course.thumbnail}
-                          alt={course.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute top-2 left-2 flex gap-1">
-                          {course.badge && (
-                            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 text-[11px] font-bold shadow-xs">
-                              {course.badge}
-                            </span>
-                          )}
-                          <span className="px-2.5 py-0.5 rounded-full bg-white/90 dark:bg-[#1d1926]/90 backdrop-blur-md text-[#1c192c] dark:text-[#f4eeff] text-[11px] font-semibold">
-                            {course.category}
-                          </span>
-                        </div>
-                        <button
-                          aria-label="Lưu vào danh sách mong muốn"
-                          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/80 dark:bg-[#1d1926]/80 backdrop-blur-md flex items-center justify-center text-[#635a72] dark:text-[#b4a9c7] hover:text-[#ba1a1a] transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">bookmark</span>
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 text-xs text-[#635a72] dark:text-[#b4a9c7]">
-                          <span className="flex items-center text-amber-500 font-bold">
-                            <span
-                              className="material-symbols-outlined text-[15px]"
-                              style={{ fontVariationSettings: "'FILL' 1" }}
-                            >
-                              star
-                            </span>
-                            {course.rating.toFixed(1)}
-                          </span>
-                          <span>•</span>
-                          <span>({course.studentCount} học viên)</span>
-                          <span>•</span>
-                          <span>{course.lessonCount} bài giảng</span>
-                        </div>
-
-                        <Link href={`/courses/${course.slug}`}>
-                          <h3 className="text-sm font-bold text-[#1c192c] dark:text-[#f4eeff] group-hover:text-[#7240b8] dark:group-hover:text-[#a87ffb] transition-colors line-clamp-2 mt-0.5">
-                            {course.title}
-                          </h3>
-                        </Link>
-                        <p className="text-xs text-[#635a72] dark:text-[#b4a9c7]">
-                          Giảng viên: {course.instructorName}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 mt-2 flex items-center justify-between border-t border-[#f7f1ff] dark:border-[#282136]">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-base font-bold text-[#7240b8] dark:text-[#a87ffb]">
-                          {formatPrice(course.price)}
-                        </span>
-                        {course.originalPrice && (
-                          <span className="text-xs text-[#7c7483] dark:text-[#b4a9c7] line-through">
-                            {formatPrice(course.originalPrice)}
-                          </span>
-                        )}
-                      </div>
-                      <Link
-                        href={`/courses/${course.slug}`}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#ebe5ff] dark:bg-[#282136] hover:bg-[#7240b8] hover:text-white text-[#7240b8] dark:text-[#a87ffb] text-xs font-semibold transition-all"
-                      >
-                        Xem chi tiết
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* 3. Section: Khóa học đề xuất cho bạn (REC-10 Personalized Recommendations) */}
+            <PersonalizedRecommendationsSection limit={8} columns={2} />
           </section>
 
           {/* RIGHT SIDEBAR: LEARNING STATISTICS PANEL (4 cols desktop) */}

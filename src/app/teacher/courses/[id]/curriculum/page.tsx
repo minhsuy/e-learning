@@ -17,6 +17,8 @@ import { ApiQuizDetail } from '@/types/quiz';
 import { courseService } from '@/services/course.service';
 import { chapterService } from '@/services/chapter.service';
 import { lessonService } from '@/services/lesson.service';
+import { lessonAiContentService } from '@/services/lesson-ai-content.service';
+import { videoService } from '@/services/video.service';
 import { quizService } from '@/services/quiz.service';
 import { CurriculumHeader } from '@/components/teacher/curriculum/curriculum-header';
 import { ChapterAccordionItem } from '@/components/teacher/curriculum/chapter-accordion-item';
@@ -28,6 +30,10 @@ import { VideoPreviewModal } from '@/components/teacher/curriculum/video-preview
 import { QuizModal } from '@/components/teacher/quiz/quiz-modal';
 import { QuizDeleteModal } from '@/components/teacher/quiz/quiz-delete-modal';
 import { QuizStudioModal } from '@/components/teacher/quiz/quiz-studio-modal';
+import { AiQuizGenerateModal } from '@/components/teacher/assessment/ai-quiz-generate-modal';
+import { CodingExerciseStudioModal } from '@/components/teacher/assessment/coding-exercise-studio-modal';
+import { LessonSummaryModal } from '@/components/teacher/curriculum/lesson-summary-modal';
+import { codingExerciseService } from '@/services/coding-exercise.service';
 import { toast } from '@/lib/toast';
 
 export default function TeacherCurriculumBuilderPage() {
@@ -92,6 +98,24 @@ export default function TeacherCurriculumBuilderPage() {
     lesson: ApiLessonItem | null;
   }>({ isOpen: false, quiz: null, lesson: null });
 
+  // AI Assessment & Coding Exercise States
+  const [aiQuizModalState, setAiQuizModalState] = useState<{
+    isOpen: boolean;
+    lesson: ApiLessonItem | null;
+  }>({ isOpen: false, lesson: null });
+
+  const [codingStudioModalState, setCodingStudioModalState] = useState<{
+    isOpen: boolean;
+    lesson: ApiLessonItem | null;
+  }>({ isOpen: false, lesson: null });
+
+  const [summaryModalState, setSummaryModalState] = useState<{
+    isOpen: boolean;
+    lesson: ApiLessonItem | null;
+  }>({ isOpen: false, lesson: null });
+
+  const [lessonCodingCounts, setLessonCodingCounts] = useState<Record<string, number>>({});
+
   // Main Data Loader Effect
   useEffect(() => {
     if (!courseId) return;
@@ -142,28 +166,41 @@ export default function TeacherCurriculumBuilderPage() {
         enrichedChapters.sort((a, b) => (a.order || 0) - (b.order || 0));
         setChapters(enrichedChapters);
 
-        // 4. Fetch Quizzes for all lessons in parallel
+        // 4. Fetch Quizzes and Coding Exercises for all lessons in parallel
         const allLessons: ApiLessonItem[] = [];
         enrichedChapters.forEach((ch) => {
           (ch.lessons || []).forEach((l) => allLessons.push(l));
         });
 
         const quizzesMap: Record<string, ApiQuizDetail | null> = {};
+        const codingMap: Record<string, number> = {};
+
         await Promise.all(
           allLessons.map(async (les) => {
             const lId = les.id || les._id;
             if (!lId) return;
+
+            // Fetch Quiz
             try {
               const qRes = await quizService.getQuizByLesson(lId, { signal: controller.signal });
               quizzesMap[lId] = qRes?.data && qRes.data.length > 0 ? qRes.data[0] : null;
             } catch {
               quizzesMap[lId] = null;
             }
+
+            // Fetch Coding Exercises count
+            try {
+              const cRes = await codingExerciseService.getExercisesByLesson(lId, { signal: controller.signal });
+              codingMap[lId] = cRes?.data ? cRes.data.length : 0;
+            } catch {
+              codingMap[lId] = 0;
+            }
           })
         );
 
         if (!isMounted) return;
         setLessonQuizzes(quizzesMap);
+        setLessonCodingCounts(codingMap);
 
         // Automatically expand all chapters on initial load
         setExpandedChapters((prev) => {
@@ -196,6 +233,85 @@ export default function TeacherCurriculumBuilderPage() {
       controller.abort();
     };
   }, [courseId, reloadKey]);
+
+  // Step 7H: Background polling when any lesson in curriculum has active video encoding or AI summary processing
+  const pendingLessonTargets = useMemo(() => {
+    const targets: Array<{ lessonId: string; bunnyVideoId?: string; videoStatus?: string; aiProcessingStatus?: string }> = [];
+    chapters.forEach((chap) => {
+      (chap.lessons || []).forEach((l) => {
+        const lId = l.id || l._id;
+        if (!lId) return;
+        const hasAnyVideo = Boolean((l.bunnyVideoId && l.bunnyVideoId.trim()) || (l.videoUrl && l.videoUrl.trim()));
+        const isVideoEncoding = l.bunnyVideoId && (l.videoStatus === 'UPLOADING' || l.videoStatus === 'PROCESSING');
+        const isAiActive =
+          l.aiProcessingStatus === 'PROCESSING' ||
+          (l.aiProcessingStatus === 'PENDING' && hasAnyVideo && !l.summary);
+        if (isVideoEncoding || isAiActive) {
+          targets.push({
+            lessonId: lId,
+            bunnyVideoId: l.bunnyVideoId,
+            videoStatus: l.videoStatus,
+            aiProcessingStatus: l.aiProcessingStatus || undefined,
+          });
+        }
+      });
+    });
+    return targets;
+  }, [chapters]);
+
+  useEffect(() => {
+    if (pendingLessonTargets.length === 0) return;
+
+    let isCancelled = false;
+    const interval = setInterval(async () => {
+      for (const target of pendingLessonTargets) {
+        if (isCancelled) return;
+        try {
+          let newVideoStatus = target.videoStatus;
+          if (target.bunnyVideoId && (target.videoStatus === 'UPLOADING' || target.videoStatus === 'PROCESSING')) {
+            const vRes = await videoService.getVideoStatus(target.bunnyVideoId).catch(() => null);
+            if (vRes?.data?.status) {
+              newVideoStatus = vRes.data.status;
+            }
+          }
+
+          const aiRes = await lessonAiContentService.getLessonAiContent(target.lessonId).catch(() => null);
+          const aiData = aiRes?.data;
+          if (!aiData && newVideoStatus === target.videoStatus) continue;
+
+          if (isCancelled) return;
+
+          setChapters((prev) =>
+            prev.map((ch) => ({
+              ...ch,
+              lessons: (ch.lessons || []).map((les) => {
+                const lId = les.id || les._id;
+                if (lId !== target.lessonId) return les;
+                return {
+                  ...les,
+                  ...(newVideoStatus ? { videoStatus: newVideoStatus } : {}),
+                  ...(aiData
+                    ? {
+                        summary: aiData.summary ?? les.summary,
+                        transcript: aiData.transcript ?? les.transcript,
+                        aiProcessingStatus: aiData.aiProcessingStatus ?? les.aiProcessingStatus,
+                      }
+                    : {}),
+                };
+              }),
+            }))
+          );
+        } catch {
+          // Ignore transient polling error
+        }
+      }
+    }, 4000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [pendingLessonTargets]);
 
   // Aggregate Metrics
   const { totalLessons, totalDurationSeconds, totalDemoLessons } = useMemo(() => {
@@ -340,6 +456,27 @@ export default function TeacherCurriculumBuilderPage() {
     setQuizStudioState((prev) => ({ ...prev, quiz: updatedQuiz }));
   };
 
+  // AI Assessment & Coding Exercise Handlers
+  const handleOpenAiQuiz = (lesson: ApiLessonItem) => {
+    setAiQuizModalState({ isOpen: true, lesson });
+  };
+
+  const handleOpenCodingStudio = (lesson: ApiLessonItem) => {
+    setCodingStudioModalState({ isOpen: true, lesson });
+  };
+
+  const handleOpenSummary = (lesson: ApiLessonItem) => {
+    setSummaryModalState({ isOpen: true, lesson });
+  };
+
+  const handleAiQuizSuccess = (quiz: ApiQuizDetail) => {
+    const lId = quiz.lessonId || (quiz as { lesson?: string }).lesson;
+    if (lId) {
+      setLessonQuizzes((prev) => ({ ...prev, [lId]: quiz }));
+    }
+    setReloadKey((prev) => prev + 1);
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
       {/* Header & Overview Banner */}
@@ -446,6 +583,7 @@ export default function TeacherCurriculumBuilderPage() {
                 chapterIndex={idx}
                 isExpanded={isExpanded}
                 lessonQuizzes={lessonQuizzes}
+                lessonCodingCounts={lessonCodingCounts}
                 onToggleExpand={() => handleToggleExpand(chapId)}
                 onEditChapter={handleOpenEditChapter}
                 onDeleteChapter={handleOpenDeleteChapter}
@@ -456,6 +594,9 @@ export default function TeacherCurriculumBuilderPage() {
                 onOpenQuizStudio={handleOpenQuizStudio}
                 onCreateQuiz={handleCreateQuiz}
                 onDeleteQuiz={handleDeleteQuiz}
+                onOpenAiQuiz={handleOpenAiQuiz}
+                onOpenCodingStudio={handleOpenCodingStudio}
+                onOpenSummary={handleOpenSummary}
               />
             );
           })}
@@ -538,6 +679,46 @@ export default function TeacherCurriculumBuilderPage() {
         onQuizUpdated={handleQuizUpdatedFromStudio}
         onQuizDeleted={handleQuizDeleted}
       />
+
+      {/* AI Quiz Generation Modal */}
+      {aiQuizModalState.isOpen && aiQuizModalState.lesson && (
+        <AiQuizGenerateModal
+          courseId={courseId}
+          lesson={aiQuizModalState.lesson}
+          existingQuiz={
+            lessonQuizzes[
+              aiQuizModalState.lesson.id ||
+                (aiQuizModalState.lesson as { _id?: string })._id ||
+                ''
+            ]
+          }
+          isOpen={aiQuizModalState.isOpen}
+          onClose={() => setAiQuizModalState({ isOpen: false, lesson: null })}
+          onSuccess={handleAiQuizSuccess}
+        />
+      )}
+
+      {/* Coding Exercise Studio Modal */}
+      {codingStudioModalState.isOpen && codingStudioModalState.lesson && (
+        <CodingExerciseStudioModal
+          courseId={courseId}
+          lesson={codingStudioModalState.lesson}
+          isOpen={codingStudioModalState.isOpen}
+          onClose={() => setCodingStudioModalState({ isOpen: false, lesson: null })}
+          onExercisesChanged={() => setReloadKey((prev) => prev + 1)}
+        />
+      )}
+
+      {/* Lesson Summary Management Modal */}
+      {summaryModalState.isOpen && summaryModalState.lesson && (
+        <LessonSummaryModal
+          courseId={courseId}
+          lesson={summaryModalState.lesson}
+          isOpen={summaryModalState.isOpen}
+          onClose={() => setSummaryModalState({ isOpen: false, lesson: null })}
+          onSummarySaved={() => setReloadKey((prev) => prev + 1)}
+        />
+      )}
     </div>
   );
 }

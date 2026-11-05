@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Course } from '@/types/course';
 import { useFavorites } from '@/hooks/use-favorites';
 
+export const DEFAULT_COURSE_FALLBACK_IMAGE =
+  'https://plus.unsplash.com/premium_photo-1720287601920-ee8c503af775?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D';
+
 interface CourseCardProps {
   course: Course;
   viewMode?: 'grid' | 'list';
@@ -19,6 +22,21 @@ export function CourseCard({
   onToggleFavorite,
 }: CourseCardProps) {
   const { isFavorite, toggleFavorite, isToggling } = useFavorites();
+
+  const thumbnailSrc =
+    course.thumbnail &&
+    course.thumbnail.trim().length > 0 &&
+    course.thumbnail !== 'null' &&
+    course.thumbnail !== 'undefined'
+      ? course.thumbnail
+      : DEFAULT_COURSE_FALLBACK_IMAGE;
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.currentTarget;
+    if (target.src !== DEFAULT_COURSE_FALLBACK_IMAGE) {
+      target.src = DEFAULT_COURSE_FALLBACK_IMAGE;
+    }
+  };
 
   const isCurrentFavorited =
     isFavoritedProp !== undefined ? isFavoritedProp : isFavorite(course.id);
@@ -65,8 +83,9 @@ export function CourseCard({
         {/* Thumbnail Frame */}
         <div className="relative w-full sm:w-72 aspect-[16/9] sm:aspect-auto overflow-hidden bg-[#f7f1ff] dark:bg-[#221d2d] shrink-0">
           <img
-            src={course.thumbnail}
+            src={thumbnailSrc}
             alt={course.title}
+            onError={handleImageError}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {course.badge && course.badge !== 'Bán chạy nhất' && course.badge !== 'Nổi bật' && (
@@ -194,8 +213,9 @@ export function CourseCard({
       {/* Thumbnail Frame */}
       <div className="relative w-full aspect-[16/9] overflow-hidden bg-[#f7f1ff] dark:bg-[#221d2d]">
         <img
-          src={course.thumbnail}
+          src={thumbnailSrc}
           alt={course.title}
+          onError={handleImageError}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
         {course.badge && course.badge !== 'Bán chạy nhất' && course.badge !== 'Nổi bật' && (
@@ -322,3 +342,6 @@ export function CourseCard({
     </article>
   );
 }
+
+export { CourseCardSkeleton } from './course-card-skeleton';
+

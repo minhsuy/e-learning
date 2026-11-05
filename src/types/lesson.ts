@@ -21,8 +21,17 @@ export interface ApiLessonItem {
   bunnyVideoId?: string;
   videoStatus?: 'CREATED' | 'UPLOADING' | 'PROCESSING' | 'READY' | 'FAILED' | string;
   isDemo?: boolean;
+  summary?: string | null;
+  transcript?: string | null;
+  aiProcessingStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface GetLessonDetailResponse {
+  success: boolean;
+  message?: string;
+  data: ApiLessonItem;
 }
 
 export interface GetLessonsByChapterResponse {

@@ -15,20 +15,24 @@ import {
   Check,
   RefreshCw,
   FileQuestion,
+  Sparkles,
 } from 'lucide-react';
 import { ApiQuizDetail, ApiQuizQuestion } from '@/types/quiz';
+import { ApiLessonItem } from '@/types/lesson';
 import { quizService } from '@/services/quiz.service';
 import { toast } from '@/lib/toast';
 import { QuizModal } from './quiz-modal';
 import { QuizDeleteModal } from './quiz-delete-modal';
 import { QuestionModal } from './question-modal';
 import { QuestionDeleteModal } from './question-delete-modal';
+import { AiQuizGenerateModal } from '@/components/teacher/assessment/ai-quiz-generate-modal';
 
 interface QuizStudioModalProps {
   courseId?: string;
   quiz: ApiQuizDetail | null;
   lessonId: string;
   lessonTitle?: string;
+  lesson?: ApiLessonItem | null;
   isOpen: boolean;
   onClose: () => void;
   onQuizUpdated: (updatedQuiz: ApiQuizDetail) => void;
@@ -67,6 +71,7 @@ function QuizStudioContent({
   quiz: initialQuiz,
   lessonId,
   lessonTitle,
+  lesson,
   onClose,
   onQuizUpdated,
   onQuizDeleted,
@@ -92,6 +97,7 @@ function QuizStudioContent({
   // Sub-modal states
   const [isEditQuizOpen, setIsEditQuizOpen] = useState(false);
   const [isDeleteQuizOpen, setIsDeleteQuizOpen] = useState(false);
+  const [isAiQuizOpen, setIsAiQuizOpen] = useState(false);
   const [questionModalState, setQuestionModalState] = useState<{
     isOpen: boolean;
     question: ApiQuizQuestion | null;
@@ -285,14 +291,27 @@ function QuizStudioContent({
               Danh sách câu hỏi ({questions.length})
             </h2>
 
-            <button
-              type="button"
-              onClick={() => setQuestionModalState({ isOpen: true, question: null })}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#7c3bed] hover:bg-[#6d28d9] text-white shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm câu hỏi</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {lesson && (
+                <button
+                  type="button"
+                  onClick={() => setIsAiQuizOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-linear-to-r from-[#7240b8] to-[#9b6ef3] hover:opacity-95 text-white shadow-xs transition-opacity"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Sinh bằng AI</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setQuestionModalState({ isOpen: true, question: null })}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#7c3bed] hover:bg-[#6d28d9] text-white shadow-xs transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Thêm câu hỏi</span>
+              </button>
+            </div>
           </div>
 
           {questions.length === 0 ? (
@@ -309,14 +328,26 @@ function QuizStudioContent({
                   Hãy tạo các câu hỏi trắc nghiệm hoặc điền khuyết đầu tiên để học viên có thể kiểm tra kiến thức sau khi hoàn thành bài học.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setQuestionModalState({ isOpen: true, question: null })}
-                className="mt-2 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-[#7c3bed] hover:bg-[#6d28d9] text-white shadow-xs transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tạo câu hỏi đầu tiên</span>
-              </button>
+              <div className="mt-2 flex items-center gap-2 flex-wrap justify-center">
+                {lesson && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAiQuizOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-linear-to-r from-[#7240b8] to-[#9b6ef3] hover:opacity-95 text-white shadow-xs transition-opacity"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Sinh câu hỏi bằng AI</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setQuestionModalState({ isOpen: true, question: null })}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-[#7c3bed] hover:bg-[#6d28d9] text-white shadow-xs transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tạo câu hỏi thủ công</span>
+                </button>
+              </div>
             </div>
           ) : (
             /* Questions Cards List */
@@ -494,6 +525,22 @@ function QuizStudioContent({
         onClose={() => setQuestionDeleteState({ isOpen: false, question: null })}
         onDeleted={handleQuestionDeleted}
       />
+
+      {/* 5. AI Quiz Generate Modal */}
+      {isAiQuizOpen && lesson && (
+        <AiQuizGenerateModal
+          courseId={courseId}
+          lesson={lesson}
+          existingQuiz={currentQuiz}
+          isOpen={isAiQuizOpen}
+          onClose={() => setIsAiQuizOpen(false)}
+          onSuccess={(updated) => {
+            setCurrentQuiz(updated);
+            onQuizUpdated(updated);
+            refreshQuiz();
+          }}
+        />
+      )}
     </div>
   );
 }

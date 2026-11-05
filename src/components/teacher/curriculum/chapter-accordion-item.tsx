@@ -14,6 +14,10 @@ import {
   Sparkles,
   BookOpen,
   HelpCircle,
+  Code2,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { ApiChapterItem } from '@/types/chapter';
 import { ApiLessonItem } from '@/types/lesson';
@@ -24,6 +28,7 @@ interface ChapterAccordionItemProps {
   chapterIndex: number;
   isExpanded: boolean;
   lessonQuizzes?: Record<string, ApiQuizDetail | null>;
+  lessonCodingCounts?: Record<string, number>;
   onToggleExpand: () => void;
   onEditChapter: (chapter: ApiChapterItem) => void;
   onDeleteChapter: (chapter: ApiChapterItem) => void;
@@ -34,6 +39,9 @@ interface ChapterAccordionItemProps {
   onOpenQuizStudio?: (quiz: ApiQuizDetail, lesson: ApiLessonItem) => void;
   onCreateQuiz?: (lesson: ApiLessonItem) => void;
   onDeleteQuiz?: (quiz: ApiQuizDetail, lesson: ApiLessonItem) => void;
+  onOpenAiQuiz?: (lesson: ApiLessonItem) => void;
+  onOpenCodingStudio?: (lesson: ApiLessonItem) => void;
+  onOpenSummary?: (lesson: ApiLessonItem) => void;
 }
 
 function formatDuration(seconds?: number): string {
@@ -48,6 +56,7 @@ export function ChapterAccordionItem({
   chapterIndex,
   isExpanded,
   lessonQuizzes,
+  lessonCodingCounts,
   onToggleExpand,
   onEditChapter,
   onDeleteChapter,
@@ -58,6 +67,9 @@ export function ChapterAccordionItem({
   onOpenQuizStudio,
   onCreateQuiz,
   onDeleteQuiz,
+  onOpenAiQuiz,
+  onOpenCodingStudio,
+  onOpenSummary,
 }: ChapterAccordionItemProps) {
   const lessons = chapter.lessons || [];
   const lessonCount = lessons.length;
@@ -179,6 +191,12 @@ export function ChapterAccordionItem({
                 const lessonId = lesson.id || lesson._id || `lesson-${lIdx}`;
                 const isVideo = (lesson.type || 'video').toLowerCase() === 'video';
                 const hasVideoUrl = Boolean(lesson.videoUrl && lesson.videoUrl.trim());
+                const hasSummary = Boolean(lesson.summary && lesson.summary.trim());
+                const hasAnyVideo = hasVideoUrl || Boolean(lesson.bunnyVideoId && lesson.bunnyVideoId.trim());
+                const aiStatus = lesson.aiProcessingStatus;
+                const isAiRunning =
+                  aiStatus === 'PROCESSING' || (aiStatus === 'PENDING' && hasAnyVideo && !hasSummary);
+                const videoStatus = lesson.videoStatus;
 
                 return (
                   <div
@@ -217,7 +235,9 @@ export function ChapterAccordionItem({
                             <>
                               <span>•</span>
                               <span className="text-[#7240b8] dark:text-[#a87ffb] font-medium truncate max-w-xs">
-                                Video sẵn sàng
+                                {videoStatus === 'PROCESSING' || videoStatus === 'UPLOADING'
+                                  ? 'Video đang mã hóa...'
+                                  : 'Video sẵn sàng'}
                               </span>
                             </>
                           )}
@@ -269,6 +289,72 @@ export function ChapterAccordionItem({
                           </button>
                         );
                       })()}
+
+                      {/* AI Quiz Generation Action */}
+                      <button
+                        type="button"
+                        onClick={() => onOpenAiQuiz?.(lesson)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-100/70 text-[#7240b8] dark:bg-violet-950/70 dark:text-[#a87ffb] hover:bg-violet-200/80 border border-violet-200 dark:border-violet-800 transition-colors shrink-0 shadow-xs"
+                        title="Tự động sinh trắc nghiệm bằng AI từ nội dung bài học"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>AI Quiz</span>
+                      </button>
+
+                      {/* Coding Exercise Action */}
+                      {(() => {
+                        const codingCount =
+                          lessonId && lessonCodingCounts ? lessonCodingCounts[lessonId] || 0 : 0;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onOpenCodingStudio?.(lesson)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 transition-colors shrink-0 shadow-xs"
+                            title="Mở Coding Exercise Studio quản lý bài tập lập trình"
+                          >
+                            <Code2 className="w-3.5 h-3.5" />
+                            <span>{codingCount > 0 ? `Code (${codingCount})` : 'Code'}</span>
+                          </button>
+                        );
+                      })()}
+
+                      {/* Lesson Summary Action */}
+                      <button
+                        type="button"
+                        onClick={() => onOpenSummary?.(lesson)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 shadow-xs cursor-pointer border ${
+                          isAiRunning
+                            ? 'bg-purple-50 text-[#7240b8] dark:bg-purple-950/70 dark:text-[#a87ffb] border-purple-200 dark:border-purple-800'
+                            : aiStatus === 'FAILED'
+                            ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                            : hasSummary
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-slate-50 text-slate-700 dark:bg-slate-800/70 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
+                        }`}
+                        title="Quản lý và chỉnh sửa tóm tắt bài học (AI Summary)"
+                      >
+                        {isAiRunning ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Đang tóm tắt...</span>
+                          </>
+                        ) : aiStatus === 'FAILED' ? (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>Tóm tắt (Lỗi)</span>
+                          </>
+                        ) : hasSummary ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Đã có tóm tắt</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Tóm tắt</span>
+                          </>
+                        )}
+                      </button>
 
                       <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
 

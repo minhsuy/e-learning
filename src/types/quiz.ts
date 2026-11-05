@@ -166,3 +166,13 @@ export interface GetTeacherQuizAnalyticsResponse {
   message?: string;
   data: TeacherQuizAnalyticsData;
 }
+
+export type {
+  AiQuizGenerateRequest,
+  AiQuizOption,
+  AiQuizPreviewQuestion,
+  AiQuizPreviewResponseData,
+  AiQuizPersistResponseData,
+  AiQuizGenerateResponse,
+  AiAssessmentDifficulty,
+} from './ai-assessment';

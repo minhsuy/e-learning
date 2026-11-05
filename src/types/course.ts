@@ -299,6 +299,9 @@ export function formatCourseDuration(totalSeconds?: number): string {
   return `${hours} giờ ${remainingMins}p`;
 }
 
+export const DEFAULT_COURSE_THUMBNAIL =
+  'https://plus.unsplash.com/premium_photo-1720287601920-ee8c503af775?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D';
+
 /**
  * Maps raw backend ApiCourseItem to the UI Course interface expected by CourseCard.
  */
@@ -337,9 +340,12 @@ export function mapApiCourseToCourse(item: ApiCourseItem): Course {
     title: item.title,
     description: item.description,
     thumbnail:
-      item.image && item.image.trim().length > 0
+      item.image &&
+      item.image.trim().length > 0 &&
+      item.image !== 'null' &&
+      item.image !== 'undefined'
         ? item.image
-        : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60',
+        : DEFAULT_COURSE_THUMBNAIL,
     category: item.category?.name || 'Khác',
     badge,
     price: priceNum,

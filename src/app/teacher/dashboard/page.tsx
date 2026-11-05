@@ -26,6 +26,7 @@ import { TeacherRevenueChart } from '@/components/teacher/dashboard/teacher-reve
 import { TeacherCourseSummary } from '@/components/teacher/dashboard/teacher-course-summary';
 import { TeacherRecentEnrollments } from '@/components/teacher/dashboard/teacher-recent-enrollments';
 import { TeacherLearningCard } from '@/components/teacher/dashboard/teacher-learning-card';
+import { TeacherTelegramCard } from '@/components/teacher/telegram/teacher-telegram-card';
 
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
@@ -200,6 +201,9 @@ export default function TeacherDashboardPage() {
           </button>
         </div>
       )}
+
+      {/* ================= TELEGRAM TEACHER LINKING CARD (TG-02B) ================= */}
+      <TeacherTelegramCard />
 
       {/* ================= 2. 4 KPI METRIC CARDS ================= */}
       <TeacherKpiCards overview={overview} isLoading={isLoading} />

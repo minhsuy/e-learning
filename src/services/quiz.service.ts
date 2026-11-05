@@ -30,7 +30,6 @@ export const quizService = {
       return await apiClient.get<GetQuizByLessonResponse>(
         `/api/quiz/lesson/${encodeURIComponent(lessonId)}`,
         {
-          skipAuth: true,
           signal: options?.signal,
         }
       );
@@ -152,5 +151,18 @@ export const quizService = {
       `/api/quiz/${encodeURIComponent(quizId)}`,
       { signal: options?.signal }
     );
+  },
+
+  /**
+   * Tự động sinh trắc nghiệm bằng AI từ nội dung transcript/summary của bài học
+   * POST /api/lessons/:id/ai-quiz/generate
+   */
+  async generateAiQuiz(
+    lessonId: string,
+    payload?: import('@/types/ai-assessment').AiQuizGenerateRequest,
+    options?: { signal?: AbortSignal }
+  ) {
+    const { aiAssessmentService } = await import('./ai-assessment.service');
+    return aiAssessmentService.generateAiQuiz(lessonId, payload, options);
   },
 };
