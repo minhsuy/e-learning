@@ -38,6 +38,8 @@ export function TeacherBreadcrumb() {
       items.push({ label: 'Chi tiết khóa học', isCurrent: true });
     } else if (pathname === '/teacher/analytics') {
       items.push({ label: 'Báo cáo & Phân tích', isCurrent: true });
+    } else if (pathname === '/teacher/automation') {
+      items.push({ label: 'Tự động hóa', isCurrent: true });
     } else {
       const segment = pathname.split('/').filter(Boolean).pop() || '';
       items.push({ label: segment, isCurrent: true });

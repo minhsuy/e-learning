@@ -13,6 +13,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'TMDEMY — Nền Tảng Học Trực Tuyến & Sàn Khóa Học',
   description: 'Hệ thống E-Learning và sàn khóa học trực tuyến chất lượng cao dành cho học viên và giảng viên.',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

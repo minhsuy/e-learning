@@ -16,6 +16,7 @@ interface CommentPaginationProps {
   onPageChange: (newPage: number) => void;
   onLimitChange: (newLimit: number) => void;
   loading: boolean;
+  className?: string;
 }
 
 export function CommentPagination({
@@ -26,6 +27,7 @@ export function CommentPagination({
   onPageChange,
   onLimitChange,
   loading,
+  className = '',
 }: CommentPaginationProps) {
   if (total === 0) return null;
 
@@ -33,7 +35,7 @@ export function CommentPagination({
   const endRecord = Math.min(page * limit, total);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-[#f1ebff] dark:border-[#2b2438] text-xs text-[#635a72] dark:text-[#a9a0b2]">
+    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-[#635a72] dark:text-[#a9a0b2] ${className}`}>
       {/* Records info & Limit selector */}
       <div className="flex items-center gap-3">
         <span>

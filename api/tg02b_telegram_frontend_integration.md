@@ -12,7 +12,7 @@
 
 This document describes the frontend integration contract and implementation details for **TG-02B: Telegram Teacher Account Linking**.
 
-The integration enables authenticated instructors on `http://localhost:3000/teacher/dashboard` to securely link their TMdemy teacher account with the TMdemy Telegram Bot (`@tmdemy_bot`). This enables realtime bot-driven revenue reports, order alerts, and student enrollment statistics.
+The integration enables authenticated instructors on `http://localhost:3000/teacher/automation` (as well as dedicated teacher management views) to securely link their TMdemy teacher account with the TMdemy Telegram Bot (`@tmdemy_bot`). This enables realtime bot-driven revenue reports, order alerts, and student enrollment statistics.
 
 ---
 
@@ -183,21 +183,24 @@ While `<TelegramLinkModal />` is open:
 
 ## 6. Component Usage Guide
 
-### Integration in `/teacher/dashboard/page.tsx`
+### Integration in Dedicated Teacher Automation Center (`/teacher/automation`)
 ```tsx
 import { TeacherTelegramCard } from '@/components/teacher/telegram/teacher-telegram-card';
 
-export default function TeacherDashboardPage() {
+export default function TeacherAutomationPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6 sm:space-y-8">
-      {/* 1. Welcome Management Banner */}
+      {/* 1. Header Banner & Actions */}
       <section>...</section>
 
-      {/* 2. Top-level Telegram Card (TG-02B) */}
+      {/* 2. Automation Overview Summary Cards */}
+      <section>...</section>
+
+      {/* 3. Telegram Account Connection Card (TG-02B) */}
       <TeacherTelegramCard />
 
-      {/* 3. Main KPI Metric Cards */}
-      <TeacherKpiCards ... />
+      {/* 4. Automated Report Schedules (TG-05) */}
+      <section>...</section>
     </div>
   );
 }

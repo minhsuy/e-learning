@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { Logo } from '@/components/common/logo';
 import { useAuth } from '@/hooks/use-auth';
 import { conversationService } from '@/services/conversation.service';
 
@@ -133,14 +134,7 @@ export function DashboardSidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-col">
           {/* Logo Brand Header */}
           <div className="h-16 px-6 flex items-center justify-between border-b border-[#f7f1ff] dark:border-[#2b2438]">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#7240b8] dark:bg-[#a87ffb] text-white dark:text-[#1c192c] flex items-center justify-center shadow-xs">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <span className="text-xl font-bold text-[#7240b8] dark:text-[#a87ffb] tracking-tight">
-                TMdemy
-              </span>
-            </Link>
+            <Logo href="/" onClick={onClose} size="md" />
 
             {/* Mobile close button */}
             <button

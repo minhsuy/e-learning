@@ -29,6 +29,7 @@ interface CommentTableProps {
   onDelete: (comment: TeacherCommentItem) => void;
   hasFilters: boolean;
   onResetFilters: () => void;
+  pagination?: React.ReactNode;
 }
 
 export function CommentTable({
@@ -40,6 +41,7 @@ export function CommentTable({
   onDelete,
   hasFilters,
   onResetFilters,
+  pagination,
 }: CommentTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -446,6 +448,13 @@ export function CommentTable({
           );
         })}
       </div>
+
+      {/* ================= PAGINATION FOOTER ================= */}
+      {pagination && (
+        <div className="p-4 border-t border-[#f1ebff] dark:border-[#2b2438] bg-white dark:bg-[#1d1926]">
+          {pagination}
+        </div>
+      )}
     </div>
   );
 }

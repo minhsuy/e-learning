@@ -6,7 +6,6 @@ import { authService } from '@/services/auth.service';
 import { AppApiError } from '@/types/api';
 import { toast } from '@/lib/toast';
 import {
-  GraduationCap,
   KeyRound,
   Mail,
   Send,
@@ -16,6 +15,7 @@ import {
   Loader2,
   Info,
 } from 'lucide-react';
+import { Logo } from '@/components/common/logo';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -58,18 +58,13 @@ export default function ForgotPasswordPage() {
     <main className="min-h-screen w-full flex flex-col justify-center items-center p-4 sm:p-6 bg-[#fdf8ff]">
       <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6 sm:p-8 border border-[#f1ebff]">
         {/* Brand Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-[#7240b8] flex items-center justify-center text-white shadow-sm shadow-[#7240b8]/30">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-[#1c192c] tracking-tight leading-none">
-              TMdemy
-            </span>
-            <span className="text-[10px] text-[#7240b8] uppercase font-bold tracking-widest mt-1">
-              Khôi phục quyền truy cập
-            </span>
-          </div>
+        <div className="mb-6">
+          <Logo
+            href="/"
+            size="lg"
+            subtitle="Khôi phục quyền truy cập"
+            textClassName="text-xl font-bold text-[#1c192c] leading-none"
+          />
         </div>
 
         {/* Back Link */}

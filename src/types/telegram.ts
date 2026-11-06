@@ -49,3 +49,7 @@ export interface TeacherTelegramUnlinkResponse {
   message: string;
 }
 
+// TG-05 Automated Report Scheduling Types
+export * from './telegram-schedule';
+
+

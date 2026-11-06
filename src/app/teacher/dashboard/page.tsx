@@ -8,7 +8,8 @@ import {
   PlusCircle, 
   TrendingUp, 
   AlertCircle, 
-  RefreshCw 
+  RefreshCw,
+  Bot
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { teacherStatisticsService } from '@/services/teacher-statistics.service';
@@ -26,7 +27,6 @@ import { TeacherRevenueChart } from '@/components/teacher/dashboard/teacher-reve
 import { TeacherCourseSummary } from '@/components/teacher/dashboard/teacher-course-summary';
 import { TeacherRecentEnrollments } from '@/components/teacher/dashboard/teacher-recent-enrollments';
 import { TeacherLearningCard } from '@/components/teacher/dashboard/teacher-learning-card';
-import { TeacherTelegramCard } from '@/components/teacher/telegram/teacher-telegram-card';
 
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
@@ -176,6 +176,14 @@ export default function TeacherDashboardPage() {
               <TrendingUp className="w-4 h-4" />
               <span>Báo cáo chi tiết</span>
             </Link>
+
+            <Link
+              href="/teacher/automation"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm transition-colors border border-white/10 active:scale-[0.98]"
+            >
+              <Bot className="w-4 h-4" />
+              <span>Tự động hóa</span>
+            </Link>
           </div>
         </div>
 
@@ -201,9 +209,6 @@ export default function TeacherDashboardPage() {
           </button>
         </div>
       )}
-
-      {/* ================= TELEGRAM TEACHER LINKING CARD (TG-02B) ================= */}
-      <TeacherTelegramCard />
 
       {/* ================= 2. 4 KPI METRIC CARDS ================= */}
       <TeacherKpiCards overview={overview} isLoading={isLoading} />

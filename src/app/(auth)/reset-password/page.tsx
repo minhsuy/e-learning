@@ -7,7 +7,6 @@ import { authService } from '@/services/auth.service';
 import { AppApiError } from '@/types/api';
 import { toast } from '@/lib/toast';
 import {
-  GraduationCap,
   Lock,
   Eye,
   EyeOff,
@@ -17,6 +16,7 @@ import {
   Loader2,
   CheckCircle2,
 } from 'lucide-react';
+import { Logo } from '@/components/common/logo';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -89,18 +89,13 @@ function ResetPasswordForm() {
   return (
     <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6 sm:p-8 border border-[#f1ebff]">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-[#7240b8] flex items-center justify-center text-white shadow-sm shadow-[#7240b8]/30">
-          <GraduationCap className="w-6 h-6" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-xl font-bold text-[#1c192c] tracking-tight leading-none">
-            TMdemy
-          </span>
-          <span className="text-[10px] text-[#7240b8] uppercase font-bold tracking-widest mt-1">
-            Đặt lại mật khẩu
-          </span>
-        </div>
+      <div className="mb-6">
+        <Logo
+          href="/"
+          size="lg"
+          subtitle="Đặt lại mật khẩu"
+          textClassName="text-xl font-bold text-[#1c192c] leading-none"
+        />
       </div>
 
       {/* Visual Heading */}

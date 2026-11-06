@@ -9,7 +9,6 @@ import { AppApiError } from '@/types/api';
 import { toast } from '@/lib/toast';
 import { GoogleLoginButton } from '@/components/auth/google-login-button';
 import {
-  GraduationCap,
   ShieldCheck,
   Award,
   Mail,
@@ -22,6 +21,7 @@ import {
   Loader2,
   Shield,
 } from 'lucide-react';
+import { Logo } from '@/components/common/logo';
 
 function LoginForm() {
   const router = useRouter();
@@ -89,12 +89,11 @@ function LoginForm() {
 
         {/* Brand Header */}
         <div className="relative z-10 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-lg bg-[#7240b8] flex items-center justify-center text-white shadow-md">
-              <GraduationCap className="w-6 h-6" />
-            </div>
-            <span className="text-2xl font-extrabold text-[#1c192c] tracking-tight">TMdemy</span>
-          </div>
+          <Logo
+            href="/"
+            size="lg"
+            textClassName="text-2xl font-extrabold text-[#1c192c]"
+          />
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#eddcff]/80 text-[#5b27a1] self-start border border-[#7240b8]/15">
             <CheckCircle2 className="w-3.5 h-3.5 text-[#7240b8]" />
             <span className="text-[11px] uppercase tracking-wider font-semibold">

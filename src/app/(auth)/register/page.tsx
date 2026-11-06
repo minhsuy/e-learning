@@ -8,7 +8,6 @@ import { AppApiError } from '@/types/api';
 import { toast } from '@/lib/toast';
 import { GoogleLoginButton } from '@/components/auth/google-login-button';
 import {
-  GraduationCap,
   User,
   AtSign,
   Lock,
@@ -26,6 +25,7 @@ import {
   Rocket,
   BadgeCheck,
 } from 'lucide-react';
+import { Logo } from '@/components/common/logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -134,18 +134,13 @@ export default function RegisterPage() {
         <div className="w-full lg:w-7/12 flex flex-col justify-center">
           <div className="bg-white rounded-xl shadow-xl p-6 sm:p-10 border border-[#f1ebff]">
             {/* Header Brand */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-[#7240b8] flex items-center justify-center text-white shadow-sm shadow-[#7240b8]/30">
-                <GraduationCap className="w-6 h-6" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-bold text-[#1c192c] tracking-tight leading-none">
-                  TMdemy
-                </span>
-                <span className="text-[10px] text-[#7240b8] uppercase font-bold tracking-widest mt-1">
-                  Học tập đỉnh cao
-                </span>
-              </div>
+            <div className="mb-6">
+              <Logo
+                href="/"
+                size="lg"
+                subtitle="Học tập đỉnh cao"
+                textClassName="text-xl font-bold text-[#1c192c] leading-none"
+              />
             </div>
 
             {/* Title */}

@@ -80,6 +80,7 @@ export function TeacherTelegramCard({ className = '' }: TeacherTelegramCardProps
   return (
     <>
       <section
+        id="teacher-telegram-card"
         aria-label="Kết nối Telegram"
         className={`w-full p-4 sm:p-5 rounded-2xl transition-all shadow-xs border ${
           isLinked

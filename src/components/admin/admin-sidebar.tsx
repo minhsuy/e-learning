@@ -12,10 +12,10 @@ import {
   Ticket,
   Receipt,
   MessageSquare,
-  GraduationCap,
   ExternalLink,
   LogOut,
 } from 'lucide-react';
+import { Logo } from '@/components/common/logo';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/lib/toast';
 
@@ -120,18 +120,11 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         <div className="flex flex-col flex-1 min-h-0">
           {/* Logo Brand Header */}
           <div className="h-16 px-6 flex items-center justify-between border-b border-[#f7f1ff] dark:border-[#2b2438]">
-            <Link
+            <Logo
               href="/admin/dashboard"
               onClick={() => onClose?.()}
-              className="flex items-center gap-2.5"
-            >
-              <div className="w-8 h-8 rounded-lg bg-[#7240b8] dark:bg-[#a87ffb] text-white dark:text-[#1c192c] flex items-center justify-center shadow-xs">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <span className="text-xl font-bold text-[#7240b8] dark:text-[#a87ffb] tracking-tight">
-                TMdemy
-              </span>
-            </Link>
+              size="md"
+            />
 
             {/* Mobile close button */}
             <button

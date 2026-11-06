@@ -150,6 +150,9 @@ export function useTeacherTelegram(): UseTeacherTeacherTelegramReturn {
         toast.success('Hủy liên kết tài khoản Telegram thành công!');
         setStatus({ isLinked: false, account: null });
         setIsConfirmUnlinkOpen(false);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tmdemy:telegram-unlinked'));
+        }
         return true;
       }
       return false;
@@ -189,6 +192,9 @@ export function useTeacherTelegram(): UseTeacherTeacherTelegramReturn {
           toast.success('🎉 Liên kết tài khoản Telegram thành công!');
           setIsModalOpen(false);
           setLinkData(null);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('tmdemy:telegram-linked'));
+          }
           clearInterval(pollInterval);
         }
       } catch {

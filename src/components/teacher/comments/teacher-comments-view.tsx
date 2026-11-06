@@ -205,7 +205,7 @@ export function TeacherCommentsView() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 pb-12">
       {/* 1. Header Title & Subtitle */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-[#f1ebff] dark:border-[#2b2438]">
         <div>
@@ -246,30 +246,28 @@ export function TeacherCommentsView() {
         loading={loading}
       />
 
-      {/* 4. Comments Table / Cards */}
-      <div className="space-y-4">
-        <CommentTable
-          comments={filteredComments}
-          loading={loading}
-          error={error}
-          onRetry={() => setReloadTrigger((prev) => prev + 1)}
-          onViewDetail={(comment) => setDetailComment(comment)}
-          onDelete={(comment) => setDeleteComment(comment)}
-          hasFilters={search.trim() !== '' || courseFilter !== 'all' || typeFilter !== 'all'}
-          onResetFilters={handleResetFilters}
-        />
-
-        {/* 5. Pagination */}
-        <CommentPagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={handlePageChange}
-          onLimitChange={handleLimitChange}
-          loading={loading}
-        />
-      </div>
+      {/* 4. Comments Table / Cards with Unified Pagination */}
+      <CommentTable
+        comments={filteredComments}
+        loading={loading}
+        error={error}
+        onRetry={() => setReloadTrigger((prev) => prev + 1)}
+        onViewDetail={(comment) => setDetailComment(comment)}
+        onDelete={(comment) => setDeleteComment(comment)}
+        hasFilters={search.trim() !== '' || courseFilter !== 'all' || typeFilter !== 'all'}
+        onResetFilters={handleResetFilters}
+        pagination={
+          <CommentPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pagination.limit}
+            onPageChange={handlePageChange}
+            onLimitChange={handleLimitChange}
+            loading={loading}
+          />
+        }
+      />
 
       {/* 6. Comment Detail Modal */}
       <CommentDetailModal

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Logo } from '@/components/common/logo';
 import { certificateService } from '@/services/certificate.service';
 import { ApiCertificatePublicVerification } from '@/types/certificate';
 import { AppApiError } from '@/types/api';
@@ -102,19 +103,13 @@ export default function CertificateVerifyPage({ params }: VerifyPageProps) {
       {/* 1. TOP PUBLIC BRAND HEADER */}
       <header className="w-full border-b border-zinc-200 dark:border-[#2f2742] bg-white dark:bg-[#1a1528] sticky top-0 z-20 shadow-2xs">
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
-              T
-            </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-base tracking-tight leading-none text-zinc-900 dark:text-zinc-100">
-                TMdemy
-              </span>
-              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">
-                Cổng Xác Thực Chứng Chỉ Số
-              </span>
-            </div>
-          </Link>
+          <Logo
+            href="/"
+            size="md"
+            subtitle="Cổng Xác Thực Chứng Chỉ Số"
+            textClassName="font-extrabold text-base tracking-tight leading-none text-zinc-900 dark:text-zinc-100"
+            subtitleClassName="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider"
+          />
 
           <div className="flex items-center gap-2">
             <Link
