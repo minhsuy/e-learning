@@ -2,16 +2,22 @@
  * Teacher Statistics Types (api/TEACHER_STATISTICS_API.md)
  */
 
+export type TeacherTimeBasis = 'recognizedAt' | 'paidAt' | 'createdAt';
+export type TeacherTimezone = 'Asia/Ho_Chi_Minh' | 'UTC';
+
 export interface TeacherOverviewRevenue {
   totalRevenue: number;
   completedOrders: number;
   totalOrders?: number;
+  paidOrders?: number;
+  freeOrders?: number;
   averageOrderValue: number;
   currency: string;
 }
 
 export interface TeacherOverviewStudents {
   totalStudents: number;
+  totalEnrollments?: number;
   activeStudents: number;
   completedStudents: number;
 }
@@ -28,11 +34,18 @@ export interface TeacherOverviewRating {
   totalReviews: number;
 }
 
+export interface TeacherOverviewEngagement {
+  averageRating: number;
+  totalReviews: number;
+  certificatesIssued: number;
+}
+
 export interface TeacherOverviewData {
   revenue: TeacherOverviewRevenue;
   students: TeacherOverviewStudents;
   courses: TeacherOverviewCourses;
   rating: TeacherOverviewRating;
+  engagement?: TeacherOverviewEngagement;
 }
 
 export interface TeacherOverviewResponse {
@@ -44,12 +57,32 @@ export interface TeacherOverviewResponse {
 export interface TeacherRevenueTimelineItem {
   date: string;
   revenue: number;
+  orderCount?: number;
   ordersCount: number;
+}
+
+export interface TeacherPaymentMethodBreakdownItem {
+  paymentMethod: string;
+  completedOrders: number;
+  revenue: number;
+}
+
+export interface TeacherRevenueReportingMeta {
+  timeBasis: TeacherTimeBasis | string;
+  timezone: TeacherTimezone | string;
+  startDate: string;
+  endDate: string;
+  legacyEstimatedOrders: number;
+  undatedLegacyOrders: number;
 }
 
 export interface TeacherRevenueSummary {
   totalRevenue: number;
   totalOrders: number;
+  completedOrders?: number;
+  paidOrders?: number;
+  freeOrders?: number;
+  totalDiscount?: number;
   averageOrderValue: number;
   currency: string;
 }
@@ -57,6 +90,8 @@ export interface TeacherRevenueSummary {
 export interface TeacherRevenueData {
   summary: TeacherRevenueSummary;
   timeline: TeacherRevenueTimelineItem[];
+  methodBreakdown?: TeacherPaymentMethodBreakdownItem[];
+  reporting?: TeacherRevenueReportingMeta;
 }
 
 export interface TeacherRevenueResponse {
@@ -72,6 +107,8 @@ export interface TeacherRevenueParams {
   startDate?: string;
   endDate?: string;
   courseId?: string;
+  timeBasis?: TeacherTimeBasis;
+  timezone?: TeacherTimezone;
 }
 
 export interface TeacherCourseStatItem {
@@ -83,10 +120,16 @@ export interface TeacherCourseStatItem {
   price: number;
   status: 'approved' | 'pending' | 'rejected' | string;
   view: number;
+  sold?: number;
   totalStudents: number;
   totalRevenue: number;
+  completedOrders?: number;
+  paidOrders?: number;
+  freeOrders?: number;
   averageRating: number;
   totalReviews: number;
+  averageProgress?: number;
+  completionRate?: number;
   createdAt: string;
 }
 
@@ -117,6 +160,7 @@ export interface TeacherCoursesStatsParams {
 export interface TeacherEnrollmentTimelineItem {
   date: string;
   count: number;
+  enrollmentsCount?: number;
 }
 
 export interface TeacherEnrollmentSummary {
@@ -126,8 +170,16 @@ export interface TeacherEnrollmentSummary {
   canceledCount: number;
 }
 
+export interface TeacherEnrollmentStatusSummary {
+  active: number;
+  completed: number;
+  canceled: number;
+  total: number;
+}
+
 export interface TeacherEnrollmentStatsData {
   summary: TeacherEnrollmentSummary;
+  statusSummary?: TeacherEnrollmentStatusSummary;
   timeline: TeacherEnrollmentTimelineItem[];
 }
 
@@ -189,6 +241,8 @@ export interface TeacherCoursePerformanceCourse {
 export interface TeacherCoursePerformanceRevenue {
   totalRevenue: number;
   completedOrders: number;
+  paidOrders?: number;
+  freeOrders?: number;
   totalDiscount: number;
   averageOrderValue: number;
   currency: string;

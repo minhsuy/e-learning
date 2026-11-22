@@ -33,11 +33,16 @@ export function TeacherBreadcrumb() {
     } else if (pathname.includes('/curriculum')) {
       items.push({ label: 'Khóa học của tôi', href: '/teacher/courses' });
       items.push({ label: 'Soạn giáo trình', isCurrent: true });
+    } else if (pathname.includes('/performance')) {
+      items.push({ label: 'Khóa học của tôi', href: '/teacher/courses' });
+      items.push({ label: 'Hiệu suất khóa học', isCurrent: true });
     } else if (pathname.startsWith('/teacher/courses/')) {
       items.push({ label: 'Khóa học của tôi', href: '/teacher/courses' });
       items.push({ label: 'Chi tiết khóa học', isCurrent: true });
-    } else if (pathname === '/teacher/analytics') {
-      items.push({ label: 'Báo cáo & Phân tích', isCurrent: true });
+    } else if (pathname === '/teacher/analytics' || pathname.startsWith('/teacher/analytics/')) {
+      items.push({ label: 'Phân tích & Báo cáo', isCurrent: true });
+    } else if (pathname === '/teacher/earnings' || pathname.startsWith('/teacher/earnings/')) {
+      items.push({ label: 'Ví & Thu nhập', isCurrent: true });
     } else if (pathname === '/teacher/automation') {
       items.push({ label: 'Tự động hóa', isCurrent: true });
     } else {

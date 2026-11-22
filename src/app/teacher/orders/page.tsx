@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { orderService } from '@/services/order.service';
-import { teacherStatisticsService } from '@/services/teacher-statistics.service';
 import { courseService } from '@/services/course.service';
 import { ApiOrderItem } from '@/types/order';
-import { TeacherOverviewRevenue } from '@/types/teacher-statistics';
 import { AppApiError } from '@/types/api';
 
 import { OrdersHeader } from '@/components/teacher/orders/orders-header';
@@ -38,13 +36,12 @@ export default function TeacherOrdersPage() {
 
   // UI & Loading states
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isOverviewLoading, setIsOverviewLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [reloadKey, setReloadKey] = useState<number>(0);
 
   // Stats
-  const [overviewRevenue, setOverviewRevenue] = useState<TeacherOverviewRevenue | null>(null);
+  const [serverPagination, setServerPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
 
   // Detail Modal state
   const [selectedOrder, setSelectedOrder] = useState<ApiOrderItem | null>(null);
@@ -62,36 +59,8 @@ export default function TeacherOrdersPage() {
     return () => clearTimeout(handler);
   }, [searchTerm, debouncedSearch]);
 
-  // 1. Fetch Teacher Overview Stats for KPI Cards
-  useEffect(() => {
-    let isMounted = true;
-    const controller = new AbortController();
+  // Page indicators use only the current server page.
 
-    const fetchStats = async () => {
-      setIsOverviewLoading(true);
-      try {
-        const statsRes = await teacherStatisticsService.getOverview({ signal: controller.signal });
-        if (isMounted && statsRes?.data?.revenue) {
-          setOverviewRevenue(statsRes.data.revenue);
-        }
-      } catch (err: unknown) {
-        if (!controller.signal.aborted) {
-          console.warn('Could not load teacher overview revenue stats:', err);
-        }
-      } finally {
-        if (isMounted && !controller.signal.aborted) {
-          setIsOverviewLoading(false);
-        }
-      }
-    };
-
-    fetchStats();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [reloadKey]);
 
   // 2. Fetch Teacher Courses for Course Filter
   useEffect(() => {
@@ -100,15 +69,13 @@ export default function TeacherOrdersPage() {
 
     const fetchCourses = async () => {
       try {
-        const res = await courseService.getTeacherCourses({ limit: 50 }, { signal: controller.signal });
-        if (isMounted && res?.data?.courses) {
-          setTeacherCourses(
-            res.data.courses.map((c) => ({
-              id: c.id || c._id || '',
-              title: c.title,
-            }))
-          );
+        const options: { id: string; title: string }[] = [];
+        for (let coursePage = 1; coursePage <= 100; coursePage++) {
+          const res = await courseService.getTeacherCourses({ limit: 100, page: coursePage }, { signal: controller.signal });
+          options.push(...res.data.courses.map(course => ({ id: course.id || course._id || '', title: course.title })));
+          if (coursePage >= res.data.pagination.totalPages) break;
         }
+        if (isMounted) setTeacherCourses(options);
       } catch (err: unknown) {
         if (!controller.signal.aborted) {
           console.warn('Could not load teacher courses for filter:', err);
@@ -125,60 +92,49 @@ export default function TeacherOrdersPage() {
   }, []);
 
   // 3. Fetch All Orders of the Teacher
+  // Management filters and pagination run on the server, across every owned course.
   useEffect(() => {
-    let isMounted = true;
     const controller = new AbortController();
-
-    const fetchOrders = async () => {
+    async function loadOrders() {
       setIsLoading(true);
       setIsError(false);
-      setErrorMessage('');
-
       try {
-        const res = await orderService.getTeacherOrders(
-          { limit: 100 },
-          { signal: controller.signal }
-        );
-
-        if (!isMounted) return;
-
-        if (res && res.data) {
-          const list = res.data.orders || [];
-          setAllOrders(list);
+        let createdFrom: string | undefined;
+        let createdTo: string | undefined;
+        if (selectedMonth !== 'all') {
+          const [year, month] = selectedMonth.split('-').map(Number);
+          createdFrom = new Date(year, month - 1, 1).toISOString();
+          createdTo = new Date(new Date(year, month, 1).getTime() - 1).toISOString();
         }
-      } catch (err: unknown) {
-        if (!isMounted || controller.signal.aborted) return;
-        setIsError(true);
-
-        if (err instanceof AppApiError) {
-          if (err.statusCode === 403) {
-            setErrorMessage('Bạn không có quyền truy cập quản trị đơn hàng.');
-          } else {
-            setErrorMessage(err.message || 'Không thể tải danh sách đơn hàng.');
-          }
-        } else if (err instanceof Error) {
-          setErrorMessage(err.message);
-        } else {
-          setErrorMessage('Đã xảy ra lỗi không xác định khi kết nối máy chủ.');
+        const response = await orderService.getTeacherOrders({
+          page, limit: pageSize,
+          search: debouncedSearch.trim() || undefined,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          courseId: selectedCourseId === 'all' ? undefined : selectedCourseId,
+          createdFrom, createdTo, sortBy: 'createdAt', sortOrder: 'desc',
+        }, { signal: controller.signal });
+        if (!response.success || !response.data) throw new Error(response.message || 'Không thể tải đơn hàng.');
+        if (!controller.signal.aborted) {
+          setAllOrders(response.data.orders);
+          setServerPagination(response.data.pagination);
         }
-      } finally {
-        if (isMounted && !controller.signal.aborted) {
-          setIsLoading(false);
+      } catch (error: unknown) {
+        if (!controller.signal.aborted) {
+          setIsError(true);
+          setErrorMessage(error instanceof Error ? error.message : 'Không thể tải đơn hàng.');
+          setAllOrders([]);
         }
-      }
-    };
-
-    fetchOrders();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [reloadKey]);
+      } finally { if (!controller.signal.aborted) setIsLoading(false); }
+    }
+    void loadOrders();
+    return () => controller.abort();
+  }, [reloadKey, page, selectedMonth, selectedCourseId, statusFilter, debouncedSearch]);
 
   // Extract available months dynamically from orders list
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
+    for (let offset = 0; offset < 24; offset++) { const date = new Date(); date.setDate(1); date.setMonth(date.getMonth() - offset); set.add(String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0')); }
+    if (selectedMonth !== 'all') set.add(selectedMonth);
 
     allOrders.forEach((o) => {
       if (o.createdAt) {
@@ -193,7 +149,7 @@ export default function TeacherOrdersPage() {
     });
 
     return Array.from(set).sort().reverse();
-  }, [allOrders]);
+  }, [allOrders, selectedMonth]);
 
   // Merge courses from orders if not in teacherCourses list
   const mergedCourses = useMemo(() => {
@@ -212,123 +168,18 @@ export default function TeacherOrdersPage() {
     return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
   }, [teacherCourses, allOrders]);
 
-  // Multi-criteria Filtering
-  const filteredOrders = useMemo(() => {
-    return allOrders.filter((order) => {
-      // 1. Filter by Month
-      if (selectedMonth !== 'all') {
-        if (!order.createdAt) return false;
-        try {
-          const d = new Date(order.createdAt);
-          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          if (ym !== selectedMonth) return false;
-        } catch {
-          return false;
-        }
-      }
-
-      // 2. Filter by Course
-      if (selectedCourseId !== 'all') {
-        const orderCourseId = order.courseId || order.course?.id || order.course?._id;
-        if (orderCourseId !== selectedCourseId) return false;
-      }
-
-      // 3. Filter by Status
-      if (statusFilter !== 'all') {
-        const st = (order.status || '').toLowerCase();
-        if (st !== statusFilter.toLowerCase()) return false;
-      }
-
-      // 4. Search Filter
-      if (debouncedSearch.trim()) {
-        const q = debouncedSearch.trim().toLowerCase();
-        const code = (order.code || '').toLowerCase();
-        const userName = (order.user?.username || '').toLowerCase();
-        const userEmail = (order.user?.email || '').toLowerCase();
-        const courseTitle = (order.course?.title || '').toLowerCase();
-
-        if (
-          !code.includes(q) &&
-          !userName.includes(q) &&
-          !userEmail.includes(q) &&
-          !courseTitle.includes(q)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [allOrders, selectedMonth, selectedCourseId, statusFilter, debouncedSearch]);
-
-  // Month-specific Stats (for the selected month & course)
+  // These are explicitly current-page indicators, not a new revenue analytics API.
   const monthStats = useMemo(() => {
-    const ordersInScope = allOrders.filter((order) => {
-      // If month selected
-      if (selectedMonth !== 'all') {
-        if (!order.createdAt) return false;
-        try {
-          const d = new Date(order.createdAt);
-          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          if (ym !== selectedMonth) return false;
-        } catch {
-          return false;
-        }
-      }
-      // If course selected
-      if (selectedCourseId !== 'all') {
-        const orderCourseId = order.courseId || order.course?.id || order.course?._id;
-        if (orderCourseId !== selectedCourseId) return false;
-      }
-      return true;
-    });
-
-    const completed = ordersInScope.filter((o) => (o.status || '').toUpperCase() === 'COMPLETED');
-    const pending = ordersInScope.filter((o) => (o.status || '').toUpperCase() === 'PENDING');
-    const totalRev = completed.reduce((sum, o) => sum + (o.total || 0), 0);
-
-    return {
-      monthTotalOrders: ordersInScope.length,
-      monthCompletedCount: completed.length,
-      monthPendingCount: pending.length,
-      monthCompletedRevenue: totalRev,
-    };
-  }, [allOrders, selectedMonth, selectedCourseId]);
-
-  // Overall KPI values (When viewing All Time vs Specific Month)
-  const kpiData = useMemo(() => {
-    const isMonth = selectedMonth !== 'all';
-
-    if (isMonth) {
-      return {
-        totalOrders: monthStats.monthTotalOrders,
-        completedOrders: monthStats.monthCompletedCount,
-        pendingOrders: monthStats.monthPendingCount,
-        totalOrderValue: monthStats.monthCompletedRevenue,
-      };
-    }
-
-    // All time
-    const totalRevenue = overviewRevenue?.totalRevenue || 0;
-    const completedCount = overviewRevenue?.completedOrders || 0;
-    const totalCount = overviewRevenue?.totalOrders || allOrders.length;
-    const pendingCount = Math.max(0, totalCount - completedCount);
-
-    return {
-      totalOrders: totalCount,
-      completedOrders: completedCount,
-      pendingOrders: pendingCount,
-      totalOrderValue: totalRevenue,
-    };
-  }, [selectedMonth, monthStats, overviewRevenue, allOrders.length]);
-
-  // Client-side Pagination on filtered orders
-  const totalFiltered = filteredOrders.length;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-  const paginatedOrders = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredOrders.slice(start, start + pageSize);
-  }, [filteredOrders, page, pageSize]);
+    const completed = allOrders.filter(order => order.status.toLowerCase() === 'completed');
+    return { monthTotalOrders: allOrders.length, monthCompletedCount: completed.length,
+      monthPendingCount: allOrders.filter(order => order.status.toLowerCase() === 'pending').length,
+      monthCompletedRevenue: completed.reduce((sum, order) => sum + order.total, 0) };
+  }, [allOrders]);
+  const kpiData = { totalOrders: monthStats.monthTotalOrders, completedOrders: monthStats.monthCompletedCount,
+    pendingOrders: monthStats.monthPendingCount, totalOrderValue: monthStats.monthCompletedRevenue };
+  const totalFiltered = serverPagination.total;
+  const totalPages = Math.max(1, serverPagination.totalPages);
+  const paginatedOrders = allOrders;
 
   // Handlers
   const handleRefresh = () => {
@@ -373,13 +224,13 @@ export default function TeacherOrdersPage() {
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* 1. Header */}
       <OrdersHeader
-        totalOrders={allOrders.length}
+        totalOrders={serverPagination.total}
         isLoading={isLoading}
         onRefresh={handleRefresh}
       />
 
       {/* 2. KPI Cards (Dynamically reflects selected month and completed orders revenue) */}
-      <OrdersKpiCards
+      <OrdersKpiCards pageScoped
         totalOrders={kpiData.totalOrders}
         completedOrders={kpiData.completedOrders}
         pendingOrders={kpiData.pendingOrders}
@@ -390,11 +241,11 @@ export default function TeacherOrdersPage() {
         monthCompletedCount={monthStats.monthCompletedCount}
         monthPendingCount={monthStats.monthPendingCount}
         monthTotalOrders={monthStats.monthTotalOrders}
-        isLoading={isOverviewLoading && isLoading}
+        isLoading={isLoading && isLoading}
       />
 
       {/* 3. Orders Table & Toolbar with Month and Course Filters */}
-      <OrdersTable
+      <OrdersTable pageScoped
         orders={paginatedOrders}
         availableMonths={availableMonths}
         selectedMonth={selectedMonth}
@@ -408,7 +259,7 @@ export default function TeacherOrdersPage() {
         isError={isError}
         errorMessage={errorMessage}
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={(value) => { setSearchTerm(value); setPage(1); }}
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusFilterChange}
         pagination={{

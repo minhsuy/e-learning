@@ -59,7 +59,7 @@ export const adminDashboardService = {
   ): Promise<import('@/types/admin-dashboard').AdminDashboardSummaryResponse> {
     return apiClient.get<import('@/types/admin-dashboard').AdminDashboardSummaryResponse>(
       '/api/admin/dashboard/summary',
-      { signal: options?.signal }
+      { signal: options?.signal, cache: 'no-store' }
     );
   },
   /**

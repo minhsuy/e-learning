@@ -24,7 +24,9 @@ export function AdminBreadcrumb() {
       return items;
     }
 
-    if (pathname === '/admin/users' || pathname.startsWith('/admin/users/')) {
+    if (pathname === '/admin/analytics' || pathname.startsWith('/admin/analytics/')) {
+      items.push({ label: 'Phân tích & Báo cáo', isCurrent: true });
+    } else if (pathname === '/admin/users' || pathname.startsWith('/admin/users/')) {
       items.push({ label: 'Người dùng', isCurrent: true });
     } else if (pathname === '/admin/courses' || pathname.startsWith('/admin/courses/')) {
       items.push({ label: 'Khóa học', isCurrent: true });
@@ -34,6 +36,10 @@ export function AdminBreadcrumb() {
       items.push({ label: 'Mã giảm giá', isCurrent: true });
     } else if (pathname === '/admin/orders' || pathname.startsWith('/admin/orders/')) {
       items.push({ label: 'Đơn hàng', isCurrent: true });
+    } else if (pathname === '/admin/payments' || pathname.startsWith('/admin/payments/')) {
+      items.push({ label: 'Quản lý thanh toán', isCurrent: true });
+    } else if (pathname === '/admin/commissions' || pathname.startsWith('/admin/commissions/')) {
+      items.push({ label: 'Hoa hồng & Đối soát', isCurrent: true });
     } else if (pathname === '/admin/comments' || pathname.startsWith('/admin/comments/')) {
       items.push({ label: 'Kiểm duyệt bình luận', isCurrent: true });
     } else {

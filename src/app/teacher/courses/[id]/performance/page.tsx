@@ -21,8 +21,9 @@ import { PerformanceKpiCards } from '@/components/teacher/performance/performanc
 import { PerformanceLearningAnalytics } from '@/components/teacher/performance/performance-learning-analytics';
 import { PerformanceLessonFunnel } from '@/components/teacher/performance/performance-lesson-funnel';
 import { PerformanceQuizAnalytics } from '@/components/teacher/performance/performance-quiz-analytics';
+import { RouteGuard } from '@/components/auth/route-guard';
 
-export default function TeacherCoursePerformancePage() {
+function TeacherCoursePerformanceContent() {
   const params = useParams();
   const courseId = (params?.id as string) || '';
 
@@ -261,5 +262,13 @@ export default function TeacherCoursePerformancePage() {
         isLoading={isLoading}
       />
     </div>
+  );
+}
+
+export default function TeacherCoursePerformancePage() {
+  return (
+    <RouteGuard requireAuth allowedRoles={['teacher']}>
+      <TeacherCoursePerformanceContent />
+    </RouteGuard>
   );
 }

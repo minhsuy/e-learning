@@ -13,21 +13,23 @@ import {
 
 /**
  * Teacher Statistics Service
- * Kết nối các API Thống kê Giảng viên theo chuẩn api/TEACHER_STATISTICS_API.md
+ * Kết nối toàn bộ 6 API Thống kê Giảng viên theo chuẩn api/TEACHER_STATISTICS_API.md (STEP 08.2).
+ * Mọi endpoint sử dụng cache: 'no-store' và xác thực danh tính giảng viên hoàn toàn qua Bearer JWT.
  */
 export const teacherStatisticsService = {
   /**
-   * Cung cấp tổng quan các chỉ số KPI trọng yếu của Giảng viên
+   * 1. Cung cấp tổng quan các chỉ số KPI trọng yếu của Giảng viên
    * GET /api/teacher/statistics/overview
    */
   async getOverview(options?: { signal?: AbortSignal }): Promise<TeacherOverviewResponse> {
     return apiClient.get<TeacherOverviewResponse>('/api/teacher/statistics/overview', {
       signal: options?.signal,
+      cache: 'no-store',
     });
   },
 
   /**
-   * Dữ liệu biểu đồ doanh thu theo chu kỳ thời gian (7days, 30days, 12months, custom)
+   * 2. Dữ liệu biểu đồ doanh thu theo chu kỳ (7days, 30days, 12months, custom), timeBasis, timezone, courseId
    * GET /api/teacher/statistics/revenue
    */
   async getRevenue(
@@ -39,15 +41,18 @@ export const teacherStatisticsService = {
     if (params?.startDate) queryParams.startDate = params.startDate;
     if (params?.endDate) queryParams.endDate = params.endDate;
     if (params?.courseId) queryParams.courseId = params.courseId;
+    if (params?.timeBasis) queryParams.timeBasis = params.timeBasis;
+    if (params?.timezone) queryParams.timezone = params.timezone;
 
     return apiClient.get<TeacherRevenueResponse>('/api/teacher/statistics/revenue', {
       params: queryParams,
       signal: options?.signal,
+      cache: 'no-store',
     });
   },
 
   /**
-   * Bảng xếp hạng và hiệu suất từng khóa học của giảng viên (doanh thu, số học viên, điểm đánh giá)
+   * 3. Bảng xếp hạng và hiệu suất từng khóa học của giảng viên
    * GET /api/teacher/statistics/courses
    */
   async getCoursesStats(
@@ -64,11 +69,12 @@ export const teacherStatisticsService = {
     return apiClient.get<TeacherCoursesStatsResponse>('/api/teacher/statistics/courses', {
       params: queryParams,
       signal: options?.signal,
+      cache: 'no-store',
     });
   },
 
   /**
-   * Thống kê số lượng ghi danh mới theo thời gian và phân bố trạng thái
+   * 4. Thống kê số lượng ghi danh mới theo thời gian và phân bố trạng thái
    * GET /api/teacher/statistics/enrollments
    */
   async getEnrollmentsStats(
@@ -82,11 +88,12 @@ export const teacherStatisticsService = {
     return apiClient.get<TeacherEnrollmentStatsResponse>('/api/teacher/statistics/enrollments', {
       params: queryParams,
       signal: options?.signal,
+      cache: 'no-store',
     });
   },
 
   /**
-   * Thống kê tiến độ học tập trung bình, tỷ lệ hoàn thành và chứng chỉ đã cấp
+   * 5. Thống kê tiến độ học tập trung bình, tỷ lệ hoàn thành và chứng chỉ đã cấp
    * GET /api/teacher/statistics/learning
    */
   async getLearningStats(
@@ -99,11 +106,12 @@ export const teacherStatisticsService = {
     return apiClient.get<TeacherLearningStatsResponse>('/api/teacher/statistics/learning', {
       params: queryParams,
       signal: options?.signal,
+      cache: 'no-store',
     });
   },
 
   /**
-   * Complete snapshot phân tích hiệu suất chuyên sâu và funnel bài học của khóa học
+   * 6. Complete snapshot phân tích hiệu suất chuyên sâu và funnel bài học của khóa học
    * GET /api/teacher/statistics/course-performance/:courseId
    */
   async getCoursePerformance(
@@ -112,7 +120,10 @@ export const teacherStatisticsService = {
   ): Promise<TeacherCoursePerformanceResponse> {
     return apiClient.get<TeacherCoursePerformanceResponse>(
       `/api/teacher/statistics/course-performance/${encodeURIComponent(courseId)}`,
-      { signal: options?.signal }
+      {
+        signal: options?.signal,
+        cache: 'no-store',
+      }
     );
   },
 };

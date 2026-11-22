@@ -117,7 +117,7 @@ export function PerformanceKpiCards({ overview, isLoading = false }: Performance
       {/* KPI 4: Doanh thu khóa học */}
       <div className="rounded-2xl bg-white dark:bg-[#1d1926] border border-[#eceaf3] dark:border-[#352e43] p-4 shadow-xs hover:shadow-sm transition-all space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[#635a72] dark:text-[#a9a0b2]">Doanh thu</span>
+          <span className="text-xs font-medium text-[#635a72] dark:text-[#a9a0b2]">Doanh thu khóa học</span>
           <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <DollarSign className="w-4 h-4" />
           </div>
@@ -126,7 +126,9 @@ export function PerformanceKpiCards({ overview, isLoading = false }: Performance
           {formatVND(totalRevenue)}
         </div>
         <div className="text-[11px] text-[#635a72] dark:text-[#a9a0b2] truncate">
-          Từ {completedOrders} đơn hàng
+          {revenue?.paidOrders !== undefined && revenue?.freeOrders !== undefined
+            ? `${revenue.paidOrders} trả phí • ${revenue.freeOrders} miễn phí`
+            : `Từ ${completedOrders} đơn hàng`}
         </div>
       </div>
 

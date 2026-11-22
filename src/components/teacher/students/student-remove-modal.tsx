@@ -135,10 +135,10 @@ export function StudentRemoveModal({
             <span>Quy tắc xử lý của hệ thống:</span>
           </div>
           <ul className="list-disc list-inside space-y-1 pl-1 text-[11px] leading-relaxed opacity-90">
-            <li>Học viên sẽ mất quyền truy cập và bị xóa khỏi danh sách ghi danh khóa học.</li>
-            <li>Hệ thống tự động giảm số lượng đã bán (sold) của khóa học này đi 1.</li>
-            <li>Đơn hàng liên quan của học viên với khóa học sẽ được xóa tự động trên máy chủ.</li>
-            <li>Thao tác này không thể hoàn tác sau khi đã xác nhận.</li>
+            <li>Học viên mất quyền học và rời nhóm chat; enrollment được giữ với trạng thái CANCELED.</li>
+            <li>Đơn hàng, thanh toán, lịch sử học và chứng chỉ được giữ nguyên.</li>
+            <li>Không hoàn tiền, không giảm lượt bán hay số lần dùng mã giảm giá.</li>
+            <li>Đơn đã hoàn tất không thể duyệt lại để khôi phục quyền học; vui lòng liên hệ hỗ trợ.</li>
           </ul>
         </div>
 

@@ -13,26 +13,37 @@ interface TeacherSidebarProps {
   onClose?: () => void;
 }
 
+export interface TeacherNavItem {
+  label: string;
+  path: string;
+  icon: string;
+}
+
+export const TEACHER_NAV_ITEMS: TeacherNavItem[] = [
+  { label: 'Tổng quan', path: '/teacher/dashboard', icon: 'dashboard' },
+  { label: 'Phân tích & Báo cáo', path: '/teacher/analytics', icon: 'analytics' },
+  { label: 'Ví & Thu nhập', path: '/teacher/earnings', icon: 'account_balance_wallet' },
+  { label: 'Khóa học của tôi', path: '/teacher/courses', icon: 'school' },
+  { label: 'Đơn hàng', path: '/teacher/orders', icon: 'shopping_bag' },
+  { label: 'Mã giảm giá', path: '/teacher/coupons', icon: 'local_offer' },
+  { label: 'Bình luận', path: '/teacher/comments', icon: 'forum' },
+  { label: 'Tự động hóa', path: '/teacher/automation', icon: 'smart_toy' },
+];
+
+export function isTeacherNavItemActive(pathname: string | null, itemPath: string): boolean {
+  if (!pathname) return false;
+  if (itemPath === '/teacher/dashboard') {
+    return pathname === '/teacher/dashboard' || pathname === '/teacher';
+  }
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}
+
 export function TeacherSidebar({ isOpen, onClose }: TeacherSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
 
-  const navItems = [
-    { label: 'Tổng quan', path: '/teacher/dashboard', icon: 'dashboard' },
-    { label: 'Khóa học của tôi', path: '/teacher/courses', icon: 'school' },
-    { label: 'Đơn hàng', path: '/teacher/orders', icon: 'shopping_bag' },
-    { label: 'Mã giảm giá', path: '/teacher/coupons', icon: 'local_offer' },
-    { label: 'Bình luận', path: '/teacher/comments', icon: 'forum' },
-    { label: 'Tự động hóa', path: '/teacher/automation', icon: 'smart_toy' },
-  ];
-
-  const isActive = (itemPath: string) => {
-    if (itemPath === '/teacher/dashboard') {
-      return pathname === '/teacher/dashboard' || pathname === '/teacher';
-    }
-    return pathname.startsWith(itemPath);
-  };
+  const isActive = (itemPath: string) => isTeacherNavItemActive(pathname, itemPath);
 
   const handleLogout = async () => {
     try {
@@ -97,15 +108,16 @@ export function TeacherSidebar({ isOpen, onClose }: TeacherSidebarProps) {
             <div className="px-3 pb-1.5 text-[11px] font-bold text-[#7c7483] dark:text-[#968e9e] uppercase tracking-wider">
               Quản trị giảng dạy
             </div>
-            <nav className="flex flex-col gap-1">
-              {navItems.map((item) => {
+            <nav aria-label="Điều hướng Giảng viên" className="flex flex-col gap-1">
+              {TEACHER_NAV_ITEMS.map((item) => {
                 const active = isActive(item.path);
                 return (
                   <Link
-                    key={item.label}
+                    key={item.path}
                     href={item.path}
+                    aria-current={active ? 'page' : undefined}
                     onClick={() => onClose?.()}
-                    className={`flex items-center justify-between px-3.5 py-2.5 transition-all text-[13px] font-semibold ${
+                    className={`flex items-center justify-between px-3.5 py-2.5 transition-all text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7240b8] ${
                       active
                         ? 'bg-[#f7f1ff] dark:bg-[#2b2438] text-[#7240b8] dark:text-[#a87ffb] border-l-4 border-[#7240b8] dark:border-[#a87ffb] rounded-r-lg font-bold shadow-2xs'
                         : 'rounded-lg text-[#4b4452] dark:text-[#cdc3d4] hover:bg-[#f7f1ff] dark:hover:bg-[#221d2d] hover:text-[#1c192c] dark:hover:text-[#f4eeff]'

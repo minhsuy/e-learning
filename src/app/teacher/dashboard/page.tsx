@@ -27,8 +27,9 @@ import { TeacherRevenueChart } from '@/components/teacher/dashboard/teacher-reve
 import { TeacherCourseSummary } from '@/components/teacher/dashboard/teacher-course-summary';
 import { TeacherRecentEnrollments } from '@/components/teacher/dashboard/teacher-recent-enrollments';
 import { TeacherLearningCard } from '@/components/teacher/dashboard/teacher-learning-card';
+import { RouteGuard } from '@/components/auth/route-guard';
 
-export default function TeacherDashboardPage() {
+function TeacherDashboardContent() {
   const { user } = useAuth();
 
   // State
@@ -55,7 +56,11 @@ export default function TeacherDashboardPage() {
           teacherStatisticsService.getOverview(),
           teacherStatisticsService.getCoursesStats({ limit: 5, sortBy: 'revenue', order: 'desc' }),
           teacherStatisticsService.getLearningStats(),
-          teacherStatisticsService.getRevenue({ period }),
+          teacherStatisticsService.getRevenue({
+            period,
+            timeBasis: 'recognizedAt',
+            timezone: 'Asia/Ho_Chi_Minh',
+          }),
         ]);
 
         if (!isMounted) return;
@@ -117,7 +122,11 @@ export default function TeacherDashboardPage() {
     setPeriod(newPeriod);
     setIsLoadingRevenue(true);
     try {
-      const res = await teacherStatisticsService.getRevenue({ period: newPeriod });
+      const res = await teacherStatisticsService.getRevenue({
+        period: newPeriod,
+        timeBasis: 'recognizedAt',
+        timezone: 'Asia/Ho_Chi_Minh',
+      });
       if (res.success) {
         setRevenueData(res.data);
       }
@@ -244,5 +253,13 @@ export default function TeacherDashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TeacherDashboardPage() {
+  return (
+    <RouteGuard requireAuth allowedRoles={['teacher']}>
+      <TeacherDashboardContent />
+    </RouteGuard>
   );
 }

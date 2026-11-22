@@ -6,11 +6,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   X,
   LayoutDashboard,
+  ChartNoAxesCombined,
   Users,
   BookOpen,
   FolderTree,
   Ticket,
   Receipt,
+  CreditCard,
+  Wallet,
   MessageSquare,
   ExternalLink,
   LogOut,
@@ -24,7 +27,7 @@ interface AdminSidebarProps {
   onClose?: () => void;
 }
 
-interface NavItem {
+export interface AdminNavItem {
   label: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -32,62 +35,83 @@ interface NavItem {
   badge?: string;
 }
 
+export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
+  {
+    label: 'Tổng quan',
+    path: '/admin/dashboard',
+    icon: LayoutDashboard,
+    materialIcon: 'dashboard',
+  },
+  {
+    label: 'Phân tích & Báo cáo',
+    path: '/admin/analytics',
+    icon: ChartNoAxesCombined,
+    materialIcon: 'analytics',
+  },
+  {
+    label: 'Người dùng',
+    path: '/admin/users',
+    icon: Users,
+    materialIcon: 'group',
+  },
+  {
+    label: 'Khóa học',
+    path: '/admin/courses',
+    icon: BookOpen,
+    materialIcon: 'school',
+  },
+  {
+    label: 'Danh mục',
+    path: '/admin/categories',
+    icon: FolderTree,
+    materialIcon: 'category',
+  },
+  {
+    label: 'Mã giảm giá',
+    path: '/admin/coupons',
+    icon: Ticket,
+    materialIcon: 'local_offer',
+  },
+  {
+    label: 'Đơn hàng',
+    path: '/admin/orders',
+    icon: Receipt,
+    materialIcon: 'shopping_cart',
+  },
+  {
+    label: 'Quản lý thanh toán',
+    path: '/admin/payments',
+    icon: CreditCard,
+    materialIcon: 'payments',
+  },
+  {
+    label: 'Hoa hồng & Đối soát',
+    path: '/admin/commissions',
+    icon: Wallet,
+    materialIcon: 'account_balance_wallet',
+  },
+  {
+    label: 'Kiểm duyệt bình luận',
+    path: '/admin/comments',
+    icon: MessageSquare,
+    materialIcon: 'forum',
+  },
+];
+
+export function isAdminNavItemActive(pathname: string | null, itemPath: string): boolean {
+  if (!pathname) return false;
+  if (itemPath === '/admin/dashboard') {
+    return pathname === '/admin/dashboard' || pathname === '/admin';
+  }
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}
+
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuth();
 
-  const navItems: NavItem[] = [
-    {
-      label: 'Tổng quan',
-      path: '/admin/dashboard',
-      icon: LayoutDashboard,
-      materialIcon: 'dashboard',
-    },
-    {
-      label: 'Người dùng',
-      path: '/admin/users',
-      icon: Users,
-      materialIcon: 'group',
-    },
-    {
-      label: 'Khóa học',
-      path: '/admin/courses',
-      icon: BookOpen,
-      materialIcon: 'school',
-    },
-    {
-      label: 'Danh mục',
-      path: '/admin/categories',
-      icon: FolderTree,
-      materialIcon: 'category',
-    },
-    {
-      label: 'Mã giảm giá',
-      path: '/admin/coupons',
-      icon: Ticket,
-      materialIcon: 'local_offer',
-    },
-    {
-      label: 'Đơn hàng',
-      path: '/admin/orders',
-      icon: Receipt,
-      materialIcon: 'shopping_cart',
-    },
-    {
-      label: 'Kiểm duyệt bình luận',
-      path: '/admin/comments',
-      icon: MessageSquare,
-      materialIcon: 'forum',
-    },
-  ];
-
-  const isActive = (itemPath: string) => {
-    if (itemPath === '/admin/dashboard') {
-      return pathname === '/admin/dashboard' || pathname === '/admin';
-    }
-    return pathname.startsWith(itemPath);
-  };
+  const isActive = (itemPath: string) => isAdminNavItemActive(pathname, itemPath);
 
   const handleLogout = async () => {
     try {
@@ -154,15 +178,16 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
               Quản trị hệ thống
             </div>
             <nav className="flex flex-col gap-1">
-              {navItems.map((item) => {
+              {ADMIN_NAV_ITEMS.map((item) => {
                 const active = isActive(item.path);
                 const IconComponent = item.icon;
                 return (
                   <Link
                     key={item.path}
                     href={item.path}
+                    aria-current={active ? 'page' : undefined}
                     onClick={() => onClose?.()}
-                    className={`flex items-center justify-between px-3.5 py-2.5 transition-all text-[13px] font-semibold ${
+                    className={`flex items-center justify-between px-3.5 py-2.5 transition-all text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7240b8] ${
                       active
                         ? 'bg-[#f7f1ff] dark:bg-[#2b2438] text-[#7240b8] dark:text-[#a87ffb] border-l-4 border-[#7240b8] dark:border-[#a87ffb] rounded-r-lg font-bold shadow-2xs'
                         : 'rounded-lg text-[#4b4452] dark:text-[#cdc3d4] hover:bg-[#f7f1ff] dark:hover:bg-[#221d2d] hover:text-[#1c192c] dark:hover:text-[#f4eeff]'

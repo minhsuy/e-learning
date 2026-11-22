@@ -94,7 +94,10 @@ export interface AdminDashboardCounts {
   totalOrders: number;
   pendingOrders: number;
   completedOrders: number;
+  rejectedOrders?: number;
   totalComments: number;
+  manualPendingOrders?: number;
+  sepayPendingOrders?: number;
 }
 
 export interface AdminDashboardFinancials {
@@ -108,10 +111,16 @@ export interface AdminDashboardPendingTask {
   actionUrl: string;
 }
 
+export interface AdminDashboardPaymentTasks {
+  reviewCount: number;
+  retryExhaustedCount: number;
+}
+
 export interface AdminDashboardSummaryData {
   counts: AdminDashboardCounts;
   financials: AdminDashboardFinancials;
   pendingTasks: AdminDashboardPendingTask[];
+  paymentTasks?: AdminDashboardPaymentTasks;
   recentUsers: AdminUserSummary[];
 }
 

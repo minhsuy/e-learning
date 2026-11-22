@@ -62,6 +62,9 @@ export const orderService = {
     if (params?.status && params.status !== 'all') queryParams.status = params.status;
     if (params?.search && params.search.trim()) queryParams.search = params.search.trim();
     if (params?.sortBy) queryParams.sortBy = params.sortBy;
+    for (const key of ['paymentMethod', 'courseId', 'createdFrom', 'createdTo', 'paidFrom', 'paidTo', 'sortOrder'] as const) {
+      if (params?.[key]) queryParams[key] = params[key];
+    }
 
     return apiClient.get<GetTeacherOrdersResponse>('/api/orders/', {
       params: queryParams,

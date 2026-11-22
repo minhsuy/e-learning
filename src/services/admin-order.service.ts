@@ -1,10 +1,15 @@
 import { apiClient } from '@/lib/api/client';
 import { AppApiError } from '@/types/api';
 import {
+  AdminFinancialStatsResponse,
+  AdminOrderDetailResponse,
   AdminOrderKpis,
   AdminOrdersListResponse,
   AdminOrderMutationResponse,
+  AdminSalesBreakdownResponse,
+  GetAdminFinancialStatsParams,
   GetAdminOrdersParams,
+  GetAdminSalesBreakdownParams,
   UpdateAdminOrderStatusPayload,
 } from '@/types/admin-order';
 
@@ -98,11 +103,32 @@ export const adminOrderService = {
     if (params?.status && params.status !== 'all') queryParams.status = params.status.toLowerCase();
     if (params?.search && params.search.trim()) queryParams.search = params.search.trim();
     if (params?.sortBy) queryParams.sortBy = params.sortBy;
+    for (const key of ['paymentMethod', 'courseId', 'createdFrom', 'createdTo', 'paidFrom', 'paidTo', 'sortOrder'] as const) {
+      if (params?.[key]) queryParams[key] = params[key];
+    }
 
     return apiClient.get<AdminOrdersListResponse>('/api/orders/', {
       params: queryParams,
       signal: options?.signal,
+      cache: 'no-store',
     });
+  },
+
+  /**
+   * Xem chi tiết đơn hàng (chỉ đọc) kèm tóm tắt thanh toán và lịch sử giao dịch đã lọc an toàn
+   * GET /api/orders/:id (STEP 08.2)
+   */
+  async getOrderDetail(
+    orderId: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<AdminOrderDetailResponse> {
+    return apiClient.get<AdminOrderDetailResponse>(
+      `/api/orders/${encodeURIComponent(orderId)}`,
+      {
+        signal: options?.signal,
+        cache: 'no-store',
+      }
+    );
   },
 
   /**
@@ -124,26 +150,61 @@ export const adminOrderService = {
   },
 
   /**
-   * Lấy thống kê tài chính và doanh thu toàn sàn cho Admin
+   * Lấy thống kê tài chính và doanh thu toàn sàn cho Admin (BE-F9.11-001 + STEP 08.2)
    * GET /api/admin/statistics/financial
    */
   async getFinancialStats(
-    params?: {
-      timeRange?: string;
-      startDate?: string;
-      endDate?: string;
-    },
+    params?: GetAdminFinancialStatsParams,
     options?: { signal?: AbortSignal }
-  ): Promise<import('@/types/admin-order').AdminFinancialStatsResponse> {
-    return apiClient.get<import('@/types/admin-order').AdminFinancialStatsResponse>(
+  ): Promise<AdminFinancialStatsResponse> {
+    const queryParams: Record<string, string | undefined> = {};
+    if (params?.timeRange) queryParams.timeRange = params.timeRange;
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.timeBasis) queryParams.timeBasis = params.timeBasis;
+    if (params?.timezone) queryParams.timezone = params.timezone;
+    if (params?.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
+    if (params?.granularity) queryParams.granularity = params.granularity;
+    if (params?.teacherId) queryParams.teacherId = params.teacherId;
+    if (params?.courseId) queryParams.courseId = params.courseId;
+
+    return apiClient.get<AdminFinancialStatsResponse>(
       '/api/admin/statistics/financial',
       {
-        params: {
-          timeRange: params?.timeRange,
-          startDate: params?.startDate,
-          endDate: params?.endDate,
-        },
+        params: queryParams,
         signal: options?.signal,
+        cache: 'no-store',
+      }
+    );
+  },
+
+  /**
+   * Báo cáo phân rã doanh số toàn sàn theo Khóa học hoặc Giảng viên (STEP 08.2)
+   * GET /api/admin/statistics/sales
+   */
+  async getSalesBreakdown(
+    params?: GetAdminSalesBreakdownParams,
+    options?: { signal?: AbortSignal }
+  ): Promise<AdminSalesBreakdownResponse> {
+    const queryParams: Record<string, string | number | undefined> = {};
+    if (params?.groupBy) queryParams.groupBy = params.groupBy;
+    if (params?.timeRange) queryParams.timeRange = params.timeRange;
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.timeBasis) queryParams.timeBasis = params.timeBasis;
+    if (params?.timezone) queryParams.timezone = params.timezone;
+    if (params?.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
+    if (params?.page !== undefined) queryParams.page = params.page;
+    if (params?.limit !== undefined) queryParams.limit = params.limit;
+    if (params?.sortBy) queryParams.sortBy = params.sortBy;
+    if (params?.order) queryParams.order = params.order;
+
+    return apiClient.get<AdminSalesBreakdownResponse>(
+      '/api/admin/statistics/sales',
+      {
+        params: queryParams,
+        signal: options?.signal,
+        cache: 'no-store',
       }
     );
   },

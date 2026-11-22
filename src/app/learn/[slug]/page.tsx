@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuthContext } from '@/contexts/auth-context';
@@ -30,6 +31,7 @@ import { Loader2 } from 'lucide-react';
 import { QuizView } from '@/components/quiz/quiz-view';
 import { CourseRatingSection } from '@/components/course/course-rating-section';
 import { LessonComments } from '@/components/course/lesson-comments';
+import { AiTutorFloatingChat } from '@/components/ai-tutor';
 
 interface ChapterWithLessons extends ApiCourseChapter {
   fullLessons: ApiLessonItem[];
@@ -51,6 +53,97 @@ function getYouTubeEmbedUrl(url?: string): string | null {
   return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&enablejsapi=1` : null;
 }
 
+interface WindowWithPlayerJs {
+  playerjs?: {
+    Player: new (elem: HTMLIFrameElement) => {
+      setCurrentTime: (s: number) => void;
+      play: () => void;
+    };
+  };
+}
+
+function dispatchBunnySeek(iframe: HTMLIFrameElement, seconds: number) {
+  // 1. If official Player.js library is loaded on window
+  if (typeof window !== 'undefined') {
+    const win = window as unknown as WindowWithPlayerJs;
+    if (win.playerjs?.Player) {
+      try {
+        const player = new win.playerjs.Player(iframe);
+        player.setCurrentTime(seconds);
+        player.play();
+      } catch {
+        // Continue to postMessage fallback
+      }
+    }
+  }
+
+  // 2. Direct postMessage using standard Player.js protocol
+  if (iframe.contentWindow) {
+    const target = iframe.contentWindow;
+
+    // A. Spec Player.js (version 0.1.0 string)
+    target.postMessage(
+      JSON.stringify({
+        context: 'player.js',
+        version: '0.1.0',
+        method: 'setCurrentTime',
+        value: seconds,
+      }),
+      '*'
+    );
+    target.postMessage(
+      JSON.stringify({
+        context: 'player.js',
+        version: '0.1.0',
+        method: 'play',
+      }),
+      '*'
+    );
+
+    // B. Spec Player.js (raw object)
+    target.postMessage(
+      {
+        context: 'player.js',
+        version: '0.1.0',
+        method: 'setCurrentTime',
+        value: seconds,
+      },
+      '*'
+    );
+    target.postMessage(
+      {
+        context: 'player.js',
+        version: '0.1.0',
+        method: 'play',
+      },
+      '*'
+    );
+
+    // C. Spec Player.js (version 0.0.11 string)
+    target.postMessage(
+      JSON.stringify({
+        context: 'player.js',
+        version: '0.0.11',
+        method: 'setCurrentTime',
+        value: seconds,
+      }),
+      '*'
+    );
+    target.postMessage(
+      JSON.stringify({
+        context: 'player.js',
+        version: '0.0.11',
+        method: 'play',
+      }),
+      '*'
+    );
+
+    // D. Direct embed methods fallback
+    target.postMessage({ method: 'setCurrentTime', value: seconds }, '*');
+    target.postMessage({ method: 'play' }, '*');
+  }
+}
+
 export default function ClassroomPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -66,6 +159,8 @@ export default function ClassroomPage() {
   const [chapters, setChapters] = useState<ChapterWithLessons[]>([]);
   const [activeLesson, setActiveLesson] = useState<ApiLessonItem | null>(null);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
+  const youtubeUrl = activeLesson ? getYouTubeEmbedUrl(activeLesson.videoUrl) : null;
+  const isDirectVideo = Boolean(activeLesson?.videoUrl && !youtubeUrl);
   const hasVideoError = Boolean(activeLesson?.videoUrl && failedVideoUrl === activeLesson.videoUrl);
 
   // Bunny Video CDN Playback States
@@ -142,6 +237,104 @@ export default function ClassroomPage() {
     totalRatings: number;
     ratings: ApiRatingItem[];
   } | null>(null);
+
+  // AI Tutor & Video Seeking States
+  const bunnyIframeRef = useRef<HTMLIFrameElement>(null);
+  const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
+  const directVideoRef = useRef<HTMLVideoElement>(null);
+  const isBunnyReadyRef = useRef<boolean>(false);
+  const pendingSeekSecondsRef = useRef<number | null>(null);
+
+  // Reset Bunny readiness and clear pending seeks when active lesson changes
+  const activeBunnyVideoId = activeLesson?.bunnyVideoId;
+  useEffect(() => {
+    isBunnyReadyRef.current = false;
+    pendingSeekSecondsRef.current = null;
+  }, [activeBunnyVideoId]);
+
+  // Listen for Player.js handshake messages from Bunny iframe
+  useEffect(() => {
+    const handleWindowMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            return;
+          }
+        }
+        if (data && typeof data === 'object') {
+          if (
+            data.context === 'player.js' &&
+            (data.event === 'ready' || data.event === 'timeupdate' || data.method === 'ready')
+          ) {
+            isBunnyReadyRef.current = true;
+            if (pendingSeekSecondsRef.current !== null && bunnyIframeRef.current) {
+              const sec = pendingSeekSecondsRef.current;
+              pendingSeekSecondsRef.current = null;
+              dispatchBunnySeek(bunnyIframeRef.current, sec);
+            }
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    };
+
+    window.addEventListener('message', handleWindowMessage);
+    return () => {
+      window.removeEventListener('message', handleWindowMessage);
+    };
+  }, []);
+
+  const handleSeekVideo = useCallback((seconds: number) => {
+    if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) return;
+
+    // 1. Bunny Stream CDN Player (Priority 1: active lesson uses Bunny Video)
+    if (activeLesson?.bunnyVideoId) {
+      if (bunnyIframeRef.current) {
+        dispatchBunnySeek(bunnyIframeRef.current, seconds);
+        toast.info(`Đang chuyển video Bunny Stream đến ${formatDuration(seconds)}`);
+      } else {
+        pendingSeekSecondsRef.current = seconds;
+        toast.info(`Sẽ chuyển video đến ${formatDuration(seconds)} khi luồng phát sẵn sàng`);
+      }
+      return;
+    }
+
+    // 2. YouTube Embed Player (Priority 2: legacy YouTube video)
+    if (youtubeUrl && youtubeIframeRef.current?.contentWindow) {
+      try {
+        youtubeIframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func: 'seekTo',
+            args: [seconds, true],
+          }),
+          '*'
+        );
+        toast.info(`Đang chuyển video YouTube đến ${formatDuration(seconds)}`);
+        return;
+      } catch {
+        // Continue fallback
+      }
+    }
+
+    // 3. Direct HTML5 Video Player (Priority 3: direct mp4 / webm video)
+    if (directVideoRef.current) {
+      try {
+        directVideoRef.current.currentTime = seconds;
+        void directVideoRef.current.play();
+        toast.info(`Đang chuyển video đến ${formatDuration(seconds)}`);
+        return;
+      } catch {
+        // Continue fallback
+      }
+    }
+
+    toast.info(`Mốc bài giảng: ${formatDuration(seconds)}`);
+  }, [activeLesson?.bunnyVideoId, youtubeUrl]);
 
   // Notes State (Persistent locally per course & lesson)
   const [noteContent, setNoteContent] = useState('');
@@ -866,8 +1059,6 @@ export default function ClassroomPage() {
 
 
   // Video embed URL
-  const youtubeUrl = activeLesson ? getYouTubeEmbedUrl(activeLesson.videoUrl) : null;
-  const isDirectVideo = Boolean(activeLesson?.videoUrl && !youtubeUrl);
   const bunnyEmbedUrl = bunnyPlayback?.playback?.embedUrl || bunnyPlayback?.embedUrl;
   const bunnyVideoStatus = bunnyPlayback?.playback?.videoStatus || bunnyPlayback?.status;
   const bunnyVideoId =
@@ -1377,12 +1568,22 @@ export default function ClassroomPage() {
                   </div>
                 ) : bunnyEmbedUrl ? (
                   <iframe
+                    id={bunnyVideoId ? `bunny-player-${bunnyVideoId}` : 'bunny-player'}
+                    ref={bunnyIframeRef}
                     key={bunnyVideoId}
                     src={bunnyEmbedUrl}
                     title={activeLesson?.title || 'Bài học Bunny Stream'}
                     allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                     allowFullScreen
                     className="w-full h-full border-0"
+                    onLoad={() => {
+                      isBunnyReadyRef.current = true;
+                      if (pendingSeekSecondsRef.current !== null && bunnyIframeRef.current) {
+                        const sec = pendingSeekSecondsRef.current;
+                        pendingSeekSecondsRef.current = null;
+                        dispatchBunnySeek(bunnyIframeRef.current, sec);
+                      }
+                    }}
                   />
                 ) : bunnyVideoStatus === 'PROCESSING' ? (
                   <div className="p-8 text-center flex flex-col items-center justify-center max-w-md gap-3 z-20">
@@ -1423,6 +1624,7 @@ export default function ClassroomPage() {
               ) : youtubeUrl ? (
                 /* 2. YOUTUBE EMBED PLAYER (LEGACY FALLBACK) */
                 <iframe
+                  ref={youtubeIframeRef}
                   src={youtubeUrl}
                   title={activeLesson?.title || 'Bài học'}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1451,6 +1653,7 @@ export default function ClassroomPage() {
                 ) : (
                   /* 4. DIRECT HTML5 VIDEO PLAYER (LEGACY FALLBACK) */
                   <video
+                    ref={directVideoRef}
                     key={activeLesson?.videoUrl}
                     src={activeLesson?.videoUrl}
                     controls
@@ -1840,6 +2043,21 @@ export default function ClassroomPage() {
           </section>
         </div>
       </div>
+
+      {activeLesson && (
+        <AiTutorFloatingChat
+          lessonId={activeLesson.id || activeLesson._id || ''}
+          lessonTitle={activeLesson.title}
+          isEnrolled={canAccessActiveLesson}
+          onSeek={handleSeekVideo}
+        />
+      )}
+
+      {/* Bunny Stream Player.js official SDK */}
+      <Script
+        src="https://assets.mediadelivery.net/playerjs/player-0.1.0.min.js"
+        strategy="lazyOnload"
+      />
     </AppShell>
   );
 }

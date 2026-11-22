@@ -3,6 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import {
+  ChartNoAxesCombined,
+  CreditCard,
   Users,
   BookOpen,
   FolderTree,
@@ -24,6 +26,22 @@ interface QuickActionItem {
 }
 
 const QUICK_ACTIONS: QuickActionItem[] = [
+  {
+    title: 'Phân tích & Báo cáo',
+    description: 'Biểu đồ doanh thu, phương thức thanh toán, top khóa học và doanh số giảng viên',
+    href: '/admin/analytics',
+    icon: ChartNoAxesCombined,
+    iconColor: 'text-[#7240b8] dark:text-[#a87ffb]',
+    iconBg: 'bg-[#f7f1ff] dark:bg-[#2b2438]',
+  },
+  {
+    title: 'Quản lý thanh toán',
+    description: 'Theo dõi giao dịch SePay, đối soát tự động và chẩn đoán webhook',
+    href: '/admin/payments',
+    icon: CreditCard,
+    iconColor: 'text-teal-600 dark:text-teal-400',
+    iconBg: 'bg-teal-50 dark:bg-teal-950/40',
+  },
   {
     title: 'Quản lý người dùng',
     description: 'Phân quyền, kích hoạt và quản lý thông tin học viên & giảng viên',

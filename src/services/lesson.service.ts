@@ -24,7 +24,9 @@ export const lessonService = {
     return apiClient.get<GetLessonsByChapterResponse>(
       `/api/lessons/chapter/${encodeURIComponent(chapterId)}`,
       {
-        skipAuth: true,
+        // Public callers get syllabus; the existing token permits authorized
+        // study content only after the backend checks persisted entitlement.
+        cache: 'no-store',
         signal: options?.signal,
       }
     );

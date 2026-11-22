@@ -10,6 +10,7 @@ import { courseService } from '@/services/course.service';
 import { ratingService } from '@/services/rating.service';
 import { enrollmentService } from '@/services/enrollment.service';
 import { orderService } from '@/services/order.service';
+import { getOrderPaymentStatus } from '@/services/payment.service';
 import { conversationService } from '@/services/conversation.service';
 import { toast } from '@/lib/toast';
 import { ApiCourseDetail, ApiCourseChapterLesson } from '@/types/course';
@@ -20,6 +21,7 @@ import { SimilarCoursesSection } from '@/components/course/similar-courses-secti
 import { lessonService } from '@/services/lesson.service';
 import { DemoLessonModal, DemoLessonItem } from '@/components/course/demo-lesson-modal';
 import { cn } from '@/lib/utils';
+import { hasLearningEnrollment } from '@/lib/payment';
 
 interface CourseDetailPageProps {
   params: Promise<{
@@ -63,9 +65,12 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
     totalRatings: number;
     ratings: ApiRatingItem[];
   } | null>(null);
-  const [isEnrolled, setIsEnrolled] = useState(false);
-  const [hasPendingOrder, setHasPendingOrder] = useState(false);
-  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [enrolled, setIsEnrolled] = useState(false);
+  const [pendingOrderExists, setHasPendingOrder] = useState(false);
+  const [ownershipUserId, setOwnershipUserId] = useState<string | null>(null);
+  const isEnrolled = Boolean(user?.id && ownershipUserId === user.id && enrolled);
+  const hasPendingOrder = Boolean(user?.id && ownershipUserId === user.id && pendingOrderExists);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
 
   // UX States
   const [isLoading, setIsLoading] = useState(true);
@@ -131,28 +136,13 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
         // Fetch enrollment & order states if user is logged in
         if (isAuthenticated) {
           try {
-            const [enrollRes, completedOrdersRes] = await Promise.all([
-              enrollmentService.getMyEnrollments({ signal: controller.signal }).catch(() => null),
-              orderService.getMyOrders({ status: 'COMPLETED', limit: 100 }, { signal: controller.signal }).catch(() => null),
-            ]);
-
+            const enrollRes = await enrollmentService.getMyEnrollments({ signal: controller.signal });
             if (isCurrent) {
-              const enrolledViaEnrollment = enrollRes?.data && Array.isArray(enrollRes.data)
-                ? enrollRes.data.some(
-                    (e) => (courseId && (e.courseId === courseId || e.course?.id === courseId)) || e.course?.slug === slug
-                  )
-                : false;
-
-              const enrolledViaCompletedOrder = completedOrdersRes?.data?.orders && Array.isArray(completedOrdersRes.data.orders)
-                ? completedOrdersRes.data.orders.some(
-                    (o) =>
-                      (o.status === 'COMPLETED' || o.status === 'completed') &&
-                      ((courseId && (o.courseId === courseId || o.course?.id === courseId)) || o.course?.slug === slug)
-                  )
-                : false;
-
-              const enrolled = Boolean(enrolledViaEnrollment || enrolledViaCompletedOrder);
+              const enrolled = Boolean(enrollRes.success && courseId && hasLearningEnrollment(enrollRes.data, courseId, slug));
               setIsEnrolled(enrolled);
+              setOwnershipUserId(user?.id || null);
+              setHasPendingOrder(false);
+              setPendingPaymentId(null);
 
               // If not enrolled, check for pending order (limit 100 to prevent missing beyond page 1)
               if (!enrolled) {
@@ -162,12 +152,24 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
                     { signal: controller.signal }
                   );
                   if (isCurrent && ordersRes.data?.orders && Array.isArray(ordersRes.data.orders)) {
-                    const pending = ordersRes.data.orders.some(
+                    const pending = ordersRes.data.orders.find(
                       (o) =>
                         (o.status === 'PENDING' || o.status === 'pending') &&
                         ((courseId && (o.courseId === courseId || o.course?.id === courseId)) || o.course?.slug === slug)
                     );
-                    setHasPendingOrder(pending);
+                    setHasPendingOrder(Boolean(pending));
+                    const pendingId = pending?.id || pending?._id;
+                    let paymentMethod = pending?.paymentMethod;
+                    // Legacy order-list projections omit payment metadata. Resolve
+                    // it through the existing owner-authorized status contract.
+                    if (pendingId && paymentMethod == null) {
+                      const paymentStatus = await getOrderPaymentStatus(pendingId, controller.signal);
+                      if (!isCurrent) return;
+                      if (paymentStatus.success && paymentStatus.data?.orderId === pendingId) {
+                        paymentMethod = paymentStatus.data.paymentMethod ?? undefined;
+                      }
+                    }
+                    setPendingPaymentId(paymentMethod === 'sepay_bank_transfer' ? pendingId || null : null);
                   }
                 } catch {
                   // Non-blocking for pending order check
@@ -216,7 +218,7 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
       document.removeEventListener('visibilitychange', handleRevalidate);
       window.removeEventListener('focus', handleRevalidate);
     };
-  }, [slug, isAuthenticated]);
+  }, [slug, isAuthenticated, user?.id]);
 
   const handleRetry = () => {
     setIsLoading(true);
@@ -239,72 +241,11 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
     })();
   };
 
-  // Free enrollment handler with real Order API & enrollment refresh
-  const handleFreeEnroll = async () => {
-    if (!isAuthenticated) {
-      router.push(`/login?redirect=/courses/${slug}`);
-      return;
-    }
-
+  // Use the same server-authoritative checkout for paid and free courses.
+  const handleFreeEnroll = () => {
     if (!course) return;
-    const courseId = course.id || course._id;
-    if (!courseId) {
-      toast.error('Không tìm thấy thông tin định danh khóa học.');
-      return;
-    }
-
-    if (isEnrolled) {
-      router.push(`/learn/${course.slug}`);
-      return;
-    }
-
-    if (hasPendingOrder) {
-      toast.warning('Đơn hàng của khóa học này đang chờ phê duyệt.');
-      return;
-    }
-
-    setIsEnrolling(true);
-    try {
-      const res = await orderService.createOrder({ courseId });
-      const orderData = res.data;
-      const orderStatus = orderData?.status?.toUpperCase();
-
-      if (orderStatus === 'COMPLETED') {
-        setIsEnrolled(true);
-        toast.success('Đăng ký khóa học thành công! Chào mừng bạn vào lớp học.');
-        router.push(`/learn/${course.slug}`);
-      } else if (orderStatus === 'PENDING') {
-        setHasPendingOrder(true);
-        toast.info('Đơn hàng đã được tạo và đang chờ giảng viên duyệt.');
-      } else {
-        toast.success('Đã gửi yêu cầu đăng ký khóa học.');
-      }
-    } catch (err: unknown) {
-      const msg =
-        err instanceof AppApiError
-          ? err.message
-          : 'Đăng ký khóa học thất bại. Vui lòng thử lại sau.';
-      if (
-        err instanceof AppApiError &&
-        err.statusCode === 400 &&
-        msg.toLowerCase().includes('already enrolled')
-      ) {
-        setIsEnrolled(true);
-        toast.info('Bạn đã ghi danh khóa học này rồi.');
-        router.push(`/learn/${course.slug}`);
-      } else if (
-        err instanceof AppApiError &&
-        err.statusCode === 400 &&
-        msg.toLowerCase().includes('pending')
-      ) {
-        setHasPendingOrder(true);
-        toast.warning('Bạn đang có đơn hàng chờ duyệt cho khóa học này.');
-      } else {
-        toast.error(msg);
-      }
-    } finally {
-      setIsEnrolling(false);
-    }
+    if (isEnrolled) { router.push(`/learn/${course.slug}`); return; }
+    router.push(`/checkout?course=${encodeURIComponent(course.slug)}`);
   };
 
   // Price formatter with 0d as 'Mien phi'
@@ -1428,7 +1369,7 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 py-3.5 px-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-sm font-bold flex items-center justify-center gap-2 select-none">
                       <span className="material-symbols-outlined text-[20px]">pending_actions</span>
-                      Đang chờ duyệt
+                      {pendingPaymentId ? <Link href={`/payment/${pendingPaymentId}`}>Kiểm tra thanh toán</Link> : 'Đang chờ duyệt'}
                     </div>
                     <button
                       type="button"
@@ -1458,20 +1399,10 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
                     <button
                       type="button"
                       onClick={handleFreeEnroll}
-                      disabled={isEnrolling}
                       className="flex-1 py-3.5 px-4 rounded-xl bg-[#7240b8] hover:bg-[#8349d3] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-white text-sm font-bold shadow-lg shadow-[#7240b8]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {isEnrolling ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Đang xử lý đăng ký...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-[20px]">school</span>
-                          <span>Đăng ký học miễn phí</span>
-                        </>
-                      )}
+                      <span className="material-symbols-outlined text-[20px]">school</span>
+                      <span>Đăng ký học miễn phí</span>
                     </button>
                     <button
                       type="button"

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 interface OrdersKpiCardsProps {
+  pageScoped?: boolean;
   totalOrders: number;
   completedOrders: number;
   pendingOrders: number;
@@ -29,6 +30,7 @@ function formatVND(amount?: number): string {
 }
 
 export function OrdersKpiCards({
+  pageScoped = false,
   totalOrders,
   completedOrders,
   pendingOrders,
@@ -79,12 +81,13 @@ export function OrdersKpiCards({
 
   return (
     <div className="space-y-2">
+      {pageScoped && <p role="status" className="text-xs text-muted-foreground">Số liệu trên trang hiện tại; tổng kết quả nằm ở phân trang.</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Tổng đơn hàng */}
         <div className="rounded-2xl bg-white dark:bg-[#1d1926] border border-[#eceaf3] dark:border-[#352e43] p-4.5 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#635a72] dark:text-[#a9a0b2]">
-              {isMonthSelected ? `Đơn hàng (${selectedMonthLabel})` : 'Tổng đơn hàng'}
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Đơn hàng (${selectedMonthLabel})` : 'Tổng đơn hàng'}
             </span>
             <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-[#7240b8] dark:text-[#a87ffb]">
               <ShoppingBag className="w-4.5 h-4.5" />
@@ -95,8 +98,7 @@ export function OrdersKpiCards({
               {displayTotalOrders}
             </div>
             <p className="text-[11px] text-[#635a72] dark:text-[#a9a0b2] mt-0.5">
-              {isMonthSelected
-                ? `Tổng đơn phát sinh trong ${selectedMonthLabel.toLowerCase()}`
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Tổng đơn phát sinh trong ${selectedMonthLabel.toLowerCase()}`
                 : 'Toàn bộ đơn mua khóa học của bạn'}
             </p>
           </div>
@@ -106,7 +108,7 @@ export function OrdersKpiCards({
         <div className="rounded-2xl bg-white dark:bg-[#1d1926] border border-[#eceaf3] dark:border-[#352e43] p-4.5 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#635a72] dark:text-[#a9a0b2]">
-              {isMonthSelected ? `Đã duyệt (${selectedMonthLabel})` : 'Đã thanh toán'}
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Đã duyệt (${selectedMonthLabel})` : 'Đã thanh toán'}
             </span>
             <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-4.5 h-4.5" />
@@ -117,8 +119,7 @@ export function OrdersKpiCards({
               {displayCompletedOrders}
             </div>
             <p className="text-[11px] text-[#635a72] dark:text-[#a9a0b2] mt-0.5">
-              {isMonthSelected
-                ? `Đơn hoàn tất trong ${selectedMonthLabel.toLowerCase()}`
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Đơn hoàn tất trong ${selectedMonthLabel.toLowerCase()}`
                 : 'Đơn hoàn tất & đã ghi danh học'}
             </p>
           </div>
@@ -128,7 +129,7 @@ export function OrdersKpiCards({
         <div className="rounded-2xl bg-white dark:bg-[#1d1926] border border-[#eceaf3] dark:border-[#352e43] p-4.5 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#635a72] dark:text-[#a9a0b2]">
-              {isMonthSelected ? `Chờ thanh toán (${selectedMonthLabel})` : 'Chờ thanh toán'}
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Chờ thanh toán (${selectedMonthLabel})` : 'Chờ thanh toán'}
             </span>
             <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
               <Clock className="w-4.5 h-4.5" />
@@ -139,8 +140,7 @@ export function OrdersKpiCards({
               {displayPendingOrders}
             </div>
             <p className="text-[11px] text-[#635a72] dark:text-[#a9a0b2] mt-0.5">
-              {isMonthSelected
-                ? `Đơn chờ duyệt trong ${selectedMonthLabel.toLowerCase()}`
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Đơn chờ duyệt trong ${selectedMonthLabel.toLowerCase()}`
                 : 'Đơn chờ duyệt hoặc chuyển khoản'}
             </p>
           </div>
@@ -155,8 +155,7 @@ export function OrdersKpiCards({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="text-xs font-bold text-[#7240b8] dark:text-[#a87ffb] truncate">
-                {isMonthSelected
-                  ? `Doanh thu ${selectedMonthLabel} (Đã duyệt)`
+                {pageScoped ? 'Trang hiện tại' : isMonthSelected ? `Doanh thu ${selectedMonthLabel} (Đã duyệt)`
                   : 'Tổng giá trị đơn hàng'}
               </span>
             </div>
@@ -169,7 +168,7 @@ export function OrdersKpiCards({
               {formatVND(displayRevenue)}
             </div>
             <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              {isMonthSelected ? (
+              {pageScoped ? 'Trang hiện tại' : isMonthSelected ? (
                 <>
                   <CheckCircle2 className="w-3 h-3" />
                   <span>{displayCompletedOrders} đơn hàng đã hoàn tất</span>

@@ -1,4 +1,5 @@
 'use client';
+import { canManageManualOrder, orderPaymentMethodLabel } from '@/lib/order-actions';
 
 import React, { useState } from 'react';
 import {
@@ -64,7 +65,6 @@ export function OrderDetailModal({
   const course = order.course;
   const user = order.user;
   const statusNormalized = (order.status || '').toUpperCase();
-  const isPending = statusNormalized === 'PENDING';
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -73,7 +73,7 @@ export function OrderDetailModal({
   };
 
   const handleUpdateStatus = async (newStatus: 'completed' | 'rejected') => {
-    if (!orderId) return;
+    if (!orderId || isUpdating || !canManageManualOrder(order)) return;
     setIsUpdating(true);
     try {
       const res = await orderService.updateOrderStatus(orderId, { status: newStatus });
@@ -121,7 +121,7 @@ export function OrderDetailModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-[#1c192c] dark:text-[#f4eeff]">
-                  Chi tiết đơn hàng {orderCode}
+                  Chi tiết đơn hàng {orderCode} <span className="text-xs font-normal">{orderPaymentMethodLabel(order.paymentMethod)}</span>
                 </h3>
                 {statusNormalized === 'COMPLETED' ? (
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">
@@ -287,7 +287,7 @@ export function OrderDetailModal({
           </div>
 
           {/* PENDING Actions Notification */}
-          {isPending && (
+          {canManageManualOrder(order) && (
             <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
@@ -308,7 +308,7 @@ export function OrderDetailModal({
             Đóng
           </button>
 
-          {isPending && (
+          {canManageManualOrder(order) && (
             <div className="flex items-center gap-2">
               <button
                 type="button"

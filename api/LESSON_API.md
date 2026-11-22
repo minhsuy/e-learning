@@ -1,5 +1,11 @@
 # TMDEMY — LESSON MANAGEMENT API (LESSON_API.MD)
 
+STEP 07.3 security correction: chapter lesson lists expose only public syllabus
+metadata for unpaid non-demo access. Authenticated study content requires current
+database entitlement; clients must send their existing token. See the mirrored
+[access contract](payment/LESSON_ACCESS_SECURITY.md) for exact redaction/authorization
+rules. This supersedes older unrestricted list examples below.
+
 Tài liệu đặc tả các API quản lý Bài học (`Lesson`) trong hệ thống.
 
 Base URL: `{{BASE_URL}}` (Mặc định: `http://localhost:3002`)

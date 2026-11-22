@@ -45,26 +45,32 @@ export function TeacherKpiCards({ overview, isLoading }: TeacherKpiCardsProps) {
 
   return (
     <section aria-label="Chỉ số hoạt động tổng quan" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {/* KPI 1: Tổng doanh thu */}
+      {/* KPI 1: Doanh thu khóa học */}
       <div className="rounded-xl p-5 bg-white dark:bg-[#1d1926] border border-[#ECEAF3] dark:border-[#352e43] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-[#635a72] dark:text-[#cdc3d4]">
-            Tổng doanh thu
+            Doanh thu khóa học
           </span>
           <div className="w-10 h-10 rounded-lg bg-[#f7f1ff] dark:bg-[#2b2438] flex items-center justify-center text-[#7240b8] dark:text-[#a87ffb]">
-            <span className="material-symbols-outlined text-xl">account_balance_wallet</span>
+            <span className="material-symbols-outlined text-xl">payments</span>
           </div>
         </div>
         <div className="space-y-1.5">
           <div className="text-2xl font-extrabold text-[#1c192c] dark:text-[#f4eeff] tracking-tight">
             {formatVND(revenue?.totalRevenue)}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[#635a72] dark:text-[#a9a0b2]">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#635a72] dark:text-[#a9a0b2]">
             <span className="inline-flex items-center text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200/60 dark:border-emerald-800/40">
               <span className="material-symbols-outlined text-xs mr-0.5">check_circle</span>
-              {revenue?.completedOrders || 0} đơn hàng
+              {revenue?.completedOrders || 0} hoàn tất
             </span>
-            <span>đã hoàn tất</span>
+            {revenue?.paidOrders !== undefined && revenue?.freeOrders !== undefined ? (
+              <span className="text-[11px]">
+                ({revenue.paidOrders} trả phí • {revenue.freeOrders} miễn phí)
+              </span>
+            ) : (
+              <span>đơn hàng</span>
+            )}
           </div>
         </div>
       </div>
@@ -135,15 +141,19 @@ export function TeacherKpiCards({ overview, isLoading }: TeacherKpiCardsProps) {
         <div className="space-y-1.5">
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-[#1c192c] dark:text-[#f4eeff] tracking-tight">
-              {rating?.averageRating ? rating.averageRating.toFixed(2) : '5.0'}
+              {rating?.totalReviews && rating.averageRating > 0
+                ? rating.averageRating.toFixed(2)
+                : 'Chưa có'}
             </span>
-            <div className="flex text-amber-400 text-xs">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span key={star} className="material-symbols-outlined text-sm text-amber-400">
-                  star
-                </span>
-              ))}
-            </div>
+            {rating?.totalReviews && rating.averageRating > 0 ? (
+              <div className="flex text-amber-400 text-xs">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span key={star} className="material-symbols-outlined text-sm text-amber-400">
+                    star
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="text-xs text-[#635a72] dark:text-[#a9a0b2]">
             Dựa trên <strong className="text-[#1c192c] dark:text-[#f4eeff] font-semibold">{rating?.totalReviews || 0}</strong> lượt đánh giá

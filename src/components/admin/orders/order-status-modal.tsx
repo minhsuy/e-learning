@@ -1,4 +1,5 @@
 'use client';
+import { canManageManualOrder } from '@/lib/order-actions';
 
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, Loader2, X, AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -58,6 +59,7 @@ export function OrderStatusModal({
 
   const handleConfirm = async () => {
     if (!orderId || loading) return;
+    if (!canManageManualOrder(order)) { setError('Đơn này không cho phép xử lý thủ công. Vui lòng tải lại danh sách hoặc kiểm tra thanh toán.'); return; }
 
     setLoading(true);
     setError(null);

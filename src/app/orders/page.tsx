@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/contexts/auth-context';
 import { orderService } from '@/services/order.service';
+import { enrollmentService } from '@/services/enrollment.service';
+import { hasLearningEnrollment } from '@/lib/payment';
+import type { ApiEnrollmentItem } from '@/types/enrollment';
 import { ApiOrderItem } from '@/types/order';
 import { ApiPagination } from '@/types/api';
 import {
@@ -45,7 +48,7 @@ function OrdersContent() {
   const searchParams = useSearchParams();
   const initialStatus = (searchParams.get('status')?.toUpperCase() as FilterStatus) || 'ALL';
 
-  const { isAuthenticated, status: authStatus } = useAuth();
+  const { user, isAuthenticated, status: authStatus } = useAuth();
 
   // State Management
   const [orders, setOrders] = useState<ApiOrderItem[]>([]);
@@ -59,6 +62,8 @@ function OrdersContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [enrollmentSnapshot, setEnrollmentSnapshot] = useState<{ userId: string; items: ApiEnrollmentItem[]; failed: boolean } | null>(null);
+  const [ordersUserId, setOrdersUserId] = useState<string | null>(null);
 
   // 1. Auth Guard
   useEffect(() => {
@@ -75,22 +80,32 @@ function OrdersContent() {
 
     let isCurrent = true;
     const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
 
     async function loadOrders() {
       setIsLoading(true);
       setErrorMessage(null);
 
       try {
-        const res = await orderService.getMyOrders(
-          {
-            page: currentPage,
-            limit: 10,
-            status: currentFilter === 'ALL' ? undefined : currentFilter,
-          },
-          { signal: controller.signal }
-        );
+        const [orderResult, enrollmentResult] = await Promise.allSettled([
+          orderService.getMyOrders(
+            {
+              page: currentPage,
+              limit: 10,
+              status: currentFilter === 'ALL' ? undefined : currentFilter,
+            },
+            { signal }
+          ),
+          enrollmentService.getMyEnrollments({ signal }),
+        ]);
 
         if (!isCurrent) return;
+        if (orderResult.status === 'rejected') throw orderResult.reason;
+        const res = orderResult.value;
+        const enrollmentData = enrollmentResult.status === 'fulfilled' && enrollmentResult.value.success
+          ? enrollmentResult.value.data : null;
+        setEnrollmentSnapshot({ userId: user?.id || '', items: enrollmentData || [], failed: !enrollmentData });
+        setOrdersUserId(user?.id || null);
 
         if (res.success && res.data) {
           setOrders(res.data.orders || []);
@@ -128,7 +143,7 @@ function OrdersContent() {
       document.removeEventListener('visibilitychange', handleRevalidate);
       window.removeEventListener('focus', handleRevalidate);
     };
-  }, [isAuthenticated, currentPage, currentFilter, refreshIndex]);
+  }, [isAuthenticated, user?.id, currentPage, currentFilter, refreshIndex]);
 
   const handleRefresh = () => {
     setRefreshIndex((prev) => prev + 1);
@@ -160,9 +175,12 @@ function OrdersContent() {
     );
   }
 
+  if (!isAuthenticated) return null;
+
   return (
     <AppShell>
       <div className="max-w-5xl mx-auto px-4 py-8 lg:py-12">
+        {enrollmentSnapshot?.userId === user?.id && enrollmentSnapshot?.failed && <p role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">Chưa xác minh được quyền học. Bạn vẫn có thể xem đơn hàng; hãy tải lại trước khi vào học.</p>}
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
@@ -233,7 +251,7 @@ function OrdersContent() {
         </div>
 
         {/* Content Area */}
-        {isLoading ? (
+        {isLoading || (!errorMessage && ordersUserId !== user?.id) ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-32 bg-[#f1ebff] dark:bg-[#2b2438] rounded-2xl animate-pulse" />
@@ -280,6 +298,8 @@ function OrdersContent() {
               const isCompleted = order.status?.toUpperCase() === 'COMPLETED';
               const courseTitle = order.course?.title || 'Khóa học TMdemy';
               const courseSlug = order.course?.slug;
+              const canLearn = isCompleted && enrollmentSnapshot && enrollmentSnapshot.userId === user?.id &&
+                hasLearningEnrollment(enrollmentSnapshot.items, order.courseId, courseSlug);
 
               return (
                 <div
@@ -370,7 +390,11 @@ function OrdersContent() {
 
                   {/* Right Column: Actions */}
                   <div className="flex items-center justify-end shrink-0">
-                    {isCompleted ? (
+                    {order.paymentMethod === 'sepay_bank_transfer' && (order.id || order._id) ? (
+                      <Link href={`/payment/${order.id || order._id}`} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground">
+                        Kiểm tra thanh toán
+                      </Link>
+                    ) : canLearn ? (
                       courseSlug ? (
                         <Link
                           href={`/learn/${courseSlug}`}

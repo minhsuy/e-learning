@@ -20,6 +20,10 @@ export interface ApiOrderItem {
   discount: number;
   total: number;
   status: OrderStatus;
+  paymentMethod?: string | null;
+  paymentCode?: string | null;
+  paidAt?: string | null;
+  expiresAt?: string | null;
   couponId?: string | null;
   courseId: string;
   userId: string;
@@ -73,6 +77,13 @@ export type GetMyOrdersResponse = ApiResponse<GetMyOrdersData>;
  * GET /api/orders/
  */
 export interface GetTeacherOrdersParams {
+  paymentMethod?: string;
+  courseId?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  paidFrom?: string;
+  paidTo?: string;
+  sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
   status?: string;

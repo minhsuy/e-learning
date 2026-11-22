@@ -5,11 +5,12 @@ Tài liệu đặc tả toàn diện 5 API Thống kê Dành cho Giảng viên (
 Base URL: `{{BASE_URL}}` (Mặc định: `http://localhost:3002`)
 
 > [!IMPORTANT]
-> **Quy tắc Định danh Bắt buộc (Strict Teacher Authorization)**:
+> **Quy tắc Định danh & Bảo mật Bắt buộc (Strict Teacher Authorization — Updated STEP 08.2)**:
 > * `teacherId` **tuyệt đối KHÔNG được gửi từ Frontend** qua query params, URL params hay body.
-> * `teacherId` **bắt buộc được trích xuất từ JWT Access Token**: `req.user.userId`.
-> * Bất kỳ yêu cầu nào không có Bearer Token hợp lệ hoặc không có vai trò `TEACHER` (`req.user.role === 'teacher'`) đều bị từ chối với mã lỗi `401 Unauthorized` hoặc `403 Forbidden`.
+> * `teacherId` **bắt buộc được trích xuất từ JWT Access Token**: `req.user.userId` và được **xác thực lại tài khoản `ACTIVE` + vai trò `TEACHER` trong PostgreSQL**. Tài khoản bị khóa (`INACTIVE`) hoặc JWT giả mạo vai trò bị từ chối với `403 Forbidden`.
+> * Tất cả 6 endpoint trả header `Cache-Control: no-store`.
 > * Số liệu thống kê được cách ly 100%: Giảng viên **chỉ nhìn thấy số liệu của các khóa học do chính mình tạo ra** (`Course.authorId === teacherId`).
+> * **Lưu ý nghiệp vụ tài chính**: Doanh thu hiển thị là **doanh số bán khóa học (sales attribution)** tính trên `Order.total` của đơn `COMPLETED`, **KHÔNG phải hoa hồng, lương hay số dư có thể rút (commission/payout)**. Doanh số lịch sử của khóa học đã xóa mềm (`isDestroyed = true`) và đơn đã thu hồi ghi danh (`Enrollment.status = CANCELED`) vẫn được bảo toàn.
 
 ---
 
@@ -60,7 +61,10 @@ Authorization: Bearer <TEACHER_ACCESS_TOKEN>
     "data": {
       "revenue": {
         "totalRevenue": 24500000,
+        "totalOrders": 45,
         "completedOrders": 45,
+        "paidOrders": 42,
+        "freeOrders": 3,
         "averageOrderValue": 544444.44,
         "currency": "VND"
       },
@@ -104,25 +108,30 @@ Authorization: Bearer <TEACHER_ACCESS_TOKEN>
 | Parameter | Type | Required | Default | Description |
 | :--- | :---: | :---: | :---: | :--- |
 | `period` | string | No | `"30days"` | Chu kỳ: `7days`, `30days`, `12months`, `custom` |
-| `startDate`| string | Chỉ khi `period=custom` | `undefined` | Ngày bắt đầu định dạng `YYYY-MM-DD` |
+| `startDate`| string | Chỉ khi `period=custom` | `undefined` | Ngày bắt đầu định dạng `YYYY-MM-DD` (tối đa 5 năm) |
 | `endDate` | string | Chỉ khi `period=custom` | `undefined` | Ngày kết thúc định dạng `YYYY-MM-DD` |
-| `courseId` | UUID | No | `undefined` | Lọc doanh thu của 1 khóa học duy nhất |
+| `courseId` | UUID | No | `undefined` | Lọc doanh thu của 1 khóa học thuộc sở hữu giảng viên (bao gồm lịch sử khóa đã xóa mềm) |
+| `timeBasis`| string | No | `"createdAt"` | `"createdAt"` (tương thích ngược), `"recognizedAt"` (`COALESCE(paidAt, createdAt)`), `"paidAt"` (chỉ đơn có `paidAt`) |
+| `timezone` | string | No | `"Asia/Ho_Chi_Minh"` | Múi giờ gom nhóm ngày/tháng: `"Asia/Ho_Chi_Minh"` (`UTC+07:00`) hoặc `"UTC"` |
 
 ### Validation Rules
 * `period`: Phải là một trong `7days`, `30days`, `12months`, `custom`.
-* `startDate`, `endDate`: Phải theo chuẩn `YYYY-MM-DD`. `startDate` không được lớn hơn `endDate`.
-* `courseId`: Phải là UUID v4 hợp lệ.
+* `startDate`, `endDate`: Phải là ngày lịch hợp lệ (`YYYY-MM-DD`, từ chối ngày ảo như `2026-02-31`). `startDate` không được lớn hơn `endDate`. Khoảng tối đa 5 năm (1826 ngày).
+* `courseId`: Phải là UUID hợp lệ.
+* `timeBasis`: Một trong `createdAt`, `paidAt`, `recognizedAt`.
+* `timezone`: Một trong `Asia/Ho_Chi_Minh`, `UTC`.
 
 ### Business & Ownership Rules
-* **Ownership Check**: Nếu gửi `courseId`, backend kiểm tra khóa học đó phải thuộc sở hữu của Giảng viên. Nếu thuộc giảng viên khác -> trả về `403 Forbidden` (`You can only view revenue for your own courses`).
-* **Lọc thời gian**: Với `period = custom`, backend tự động tính biên độ thời gian bao gồm trọn vẹn cả ngày kết thúc (chuyển sang `00:00:00 UTC` của ngày tiếp theo).
+* **Ownership Check**: Nếu gửi `courseId`, backend kiểm tra khóa học đó phải thuộc sở hữu của Giảng viên (`Course.authorId === teacherId`). Nếu thuộc giảng viên khác -> trả về `403 Forbidden`.
+* **Múi giờ & Chuỗi liên tục (Zero-Filled Timeline)**: Mọi ranh giới ngày/tháng tính theo `timezone` (mặc định `Asia/Ho_Chi_Minh`), chuyển sang UTC instant `[start, end)` trước khi truy vấn PostgreSQL bằng `(col AT TIME ZONE 'UTC')`, và tự động điền giá trị `0` cho các ngày/tháng không phát sinh giao dịch.
 * **Nhóm dữ liệu**:
-  * `7days`, `30days`, `custom`: Nhóm theo ngày (`DATE_TRUNC('day', ...)`), định dạng ngày `YYYY-MM-DD`.
-  * `12months`: Nhóm theo tháng (`DATE_TRUNC('month', ...)`), định dạng tháng `YYYY-MM`.
-* Chỉ tính các đơn hàng có `Order.status = COMPLETED`.
+  * `7days`, `30days`, `custom` (<= 62 ngày): Nhóm theo ngày (`YYYY-MM-DD`).
+  * `12months`, `custom` (> 62 ngày): Nhóm theo tháng (`YYYY-MM`).
+* Chỉ tính các đơn hàng có `Order.status = COMPLETED` (bao gồm cả đơn thuộc khóa học đã soft-delete của giảng viên). Phân tách rõ `paidOrders`, `freeOrders` và `methodBreakdown` (`sepay_bank_transfer`, `manual_bank_transfer`, `free`, `legacy_unknown`).
 
 ### Success Response
 * **HTTP Status**: `200 OK`
+* **Headers**: `Cache-Control: no-store`
 * **JSON Schema**:
   ```json
   {
@@ -132,6 +141,10 @@ Authorization: Bearer <TEACHER_ACCESS_TOKEN>
       "summary": {
         "totalRevenue": 15000000,
         "totalOrders": 30,
+        "completedOrders": 30,
+        "paidOrders": 28,
+        "freeOrders": 2,
+        "totalDiscount": 500000,
         "averageOrderValue": 500000,
         "currency": "VND"
       },
@@ -139,14 +152,29 @@ Authorization: Bearer <TEACHER_ACCESS_TOKEN>
         {
           "date": "2026-02-01",
           "revenue": 1500000,
+          "orderCount": 3,
           "ordersCount": 3
         },
         {
           "date": "2026-02-02",
-          "revenue": 2000000,
-          "ordersCount": 4
+          "revenue": 0,
+          "orderCount": 0,
+          "ordersCount": 0
         }
-      ]
+      ],
+      "methodBreakdown": [
+        { "paymentMethod": "sepay_bank_transfer", "completedOrders": 20, "revenue": 12000000 },
+        { "paymentMethod": "manual_bank_transfer", "completedOrders": 8, "revenue": 3000000 },
+        { "paymentMethod": "free", "completedOrders": 2, "revenue": 0 }
+      ],
+      "reporting": {
+        "timeBasis": "recognizedAt",
+        "timezone": "Asia/Ho_Chi_Minh",
+        "startDate": "2026-01-31T17:00:00.000Z",
+        "endDate": "2026-02-28T17:00:00.000Z",
+        "legacyEstimatedOrders": 0,
+        "undatedLegacyOrders": 0
+      }
     }
   }
   ```
@@ -202,6 +230,9 @@ Authorization: Bearer <TEACHER_ACCESS_TOKEN>
           "view": 1250,
           "totalStudents": 42,
           "totalRevenue": 24500000,
+          "completedOrders": 45,
+          "paidOrders": 42,
+          "freeOrders": 3,
           "averageRating": 4.85,
           "totalReviews": 38,
           "createdAt": "2026-02-01T10:00:00.000Z"

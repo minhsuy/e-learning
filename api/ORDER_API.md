@@ -131,7 +131,8 @@ Authorization: Bearer <ACCESS_TOKEN>
 ### Request Body
 ```json
 {
-  "status": "completed"
+  "status": "rejected",
+  "rejectedReason": "Học viên yêu cầu hủy đơn do thanh toán nhầm"
 }
 ```
 
@@ -141,9 +142,11 @@ Authorization: Bearer <ACCESS_TOKEN>
   * Tăng số lượng đã bán của khóa học (`sold = sold + 1`).
   * Tự động thêm học viên vào nhóm trò chuyện chung của khóa học (`Conversation`).
   * Gửi Notification thông báo thanh toán thành công cho học viên.
-* **Khi chuyển sang `REJECTED`**:
-  * Nếu trước đó đã ghi danh, tự động xóa bản ghi Enrollment tương ứng.
-  * Nếu đơn hàng có sử dụng coupon, giảm số lượt dùng của coupon `used = max(0, used - 1)`.
+* **Khi chuyển sang `REJECTED` (Vòng đời chuẩn hóa theo BE-F9.11-006)**:
+  * **Tính chất lưu vết (Data Retention)**: Bản ghi Order **KHÔNG BỊ XÓA CỨNG (NO HARD DELETE)**. Đơn hàng được bảo toàn vĩnh viễn trong PostgreSQL với trạng thái `status: "REJECTED"`, lưu thời điểm `rejectedAt` và lý do từ chối `rejectedReason` để phục vụ đối soát tài chính và kiểm toán.
+  * Nếu trước đó đơn hàng từng ở trạng thái `COMPLETED`: tự động rollback số lượng đã bán (`sold = sold - 1`) và thu hồi quyền ghi danh (xóa bản ghi Enrollment tương ứng).
+  * Nếu đơn hàng có sử dụng coupon: hoàn lại số lượt đã dùng của coupon (`used = max(0, used - 1)`).
+  * Đơn hàng bị từ chối có thể được tra cứu lại bất cứ lúc nào qua `GET /api/orders?status=rejected`.
 
 ### Success Response
 * **HTTP Status**: `200 OK`
@@ -151,10 +154,18 @@ Authorization: Bearer <ACCESS_TOKEN>
   ```json
   {
     "success": true,
-    "message": "Order updated successfully",
+    "message": "Order rejected successfully!",
     "data": {
       "id": "order-uuid-1",
-      "status": "completed"
+      "code": "DH-2464723",
+      "amount": 499000,
+      "discount": 0,
+      "total": 499000,
+      "status": "REJECTED",
+      "rejectedReason": "Học viên yêu cầu hủy đơn do thanh toán nhầm",
+      "rejectedAt": "2026-10-20T19:40:00.000Z",
+      "createdAt": "2026-03-01T10:00:00.000Z",
+      "updatedAt": "2026-10-20T19:40:00.000Z"
     }
   }
   ```
@@ -166,7 +177,8 @@ Authorization: Bearer <ADMIN_ACCESS_TOKEN>
 Content-Type: application/json
 
 {
-  "status": "completed"
+  "status": "rejected",
+  "rejectedReason": "Học viên yêu cầu hủy đơn do thanh toán nhầm"
 }
 ```
 
@@ -203,3 +215,82 @@ Content-Type: application/json
 GET {{BASE_URL}}/api/orders/?page=1&limit=10&status=completed
 Authorization: Bearer <ADMIN_ACCESS_TOKEN>
 ```
+
+---
+
+## 5. GET /api/orders/:id (NEW — STEP 08.2)
+
+### Method & Endpoint
+* **Method**: `GET`
+* **Endpoint**: `/api/orders/:id`
+* **Purpose**: Xem chi tiết một đơn hàng (chỉ đọc) kèm tóm tắt thanh toán (`paymentSummary`) và danh sách giao dịch thanh toán đã được lọc an toàn (`transactions`).
+* **Authentication**: `Bearer JWT required` (Xác thực tài khoản `ACTIVE` và vai trò được lưu trong PostgreSQL)
+* **Roles**: `ADMIN`, `TEACHER`, `USER` (với phạm vi cô lập nghiêm ngặt theo vai trò)
+* **Response Headers**: `Cache-Control: no-store`
+
+### Path Parameters
+| Parameter | Type | Required | Description |
+| :--- | :---: | :---: | :--- |
+| `id` | UUID | Yes | UUID của đơn hàng cần xem |
+
+### Authorization & Sanitization Rules
+1. **`ADMIN`**: Được xem mọi đơn hàng trong hệ thống (bao gồm đơn orphan). Trường `referenceCode` trong `transactions` chỉ hiển thị cho `ADMIN`.
+2. **`TEACHER`**: Chỉ được xem đơn hàng thuộc các khóa học do chính giảng viên đó tạo (`order.course.authorId === actor.id`). Đơn thuộc giảng viên khác trả `403 Forbidden`. Trường `referenceCode` bị ẩn.
+3. **`USER` (Học viên)**: Chỉ được xem đơn hàng của chính mình (`order.userId === actor.id`). Đơn của học viên khác trả `403 Forbidden`. Trường `referenceCode` bị ẩn.
+4. **Bảo mật dữ liệu ngân hàng**: Tuyệt đối không trả về `rawPayload`, `accountNumber`, `subAccount`, bí mật webhook hay API key ngân hàng ở bất kỳ vai trò nào.
+
+### Success Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Fetched order details successfully!",
+  "data": {
+    "order": {
+      "id": "order-uuid-1",
+      "_id": "order-uuid-1",
+      "code": "O1-SEPAY",
+      "amount": 300000,
+      "discount": 0,
+      "total": 300000,
+      "status": "COMPLETED",
+      "paymentMethod": "sepay_bank_transfer",
+      "paymentCode": "TM082O1",
+      "paidAt": "2026-11-18T05:00:00.000Z",
+      "expiresAt": null,
+      "course": { "id": "course-uuid-1", "_id": "course-uuid-1", "title": "Course A1 TypeScript", "price": 300000 },
+      "coupon": null,
+      "user": { "id": "user-uuid-1", "_id": "user-uuid-1", "username": "StudentOne", "email": "s1@step082.test" }
+    },
+    "paymentSummary": {
+      "paymentMethod": "sepay_bank_transfer",
+      "paymentCode": "TM082O1",
+      "paidAt": "2026-11-18T05:00:00.000Z",
+      "expiresAt": null,
+      "isPaid": true,
+      "transactionCount": 1,
+      "totalTransferred": 300000
+    },
+    "transactions": [
+      {
+        "id": "tx-uuid-1",
+        "provider": "sepay",
+        "gateway": "MBBank",
+        "transactionDate": "2026-11-18T04:59:50.000Z",
+        "transferType": "in",
+        "transferAmount": 300000,
+        "paymentCode": "TM082O1",
+        "status": "SUCCESS",
+        "createdAt": "2026-11-18T05:00:00.000Z",
+        "processedAt": "2026-11-18T05:00:01.000Z",
+        "referenceCode": "FT-ADMIN-ONLY-001"
+      }
+    ]
+  }
+}
+```
+
+### Error Responses
+* `400 Bad Request`: `id` không phải UUID hợp lệ.
+* `401 Unauthorized`: Thiếu hoặc sai Access Token.
+* `403 Forbidden`: Tài khoản không ở trạng thái `ACTIVE`, JWT giả mạo vai trò, hoặc truy cập đơn hàng ngoài phạm vi sở hữu.
+* `404 Not Found`: Không tìm thấy đơn hàng.

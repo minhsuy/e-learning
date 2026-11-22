@@ -20,6 +20,7 @@ import {
 import { ApiOrderItem } from '@/types/order';
 
 interface OrdersTableProps {
+  pageScoped?: boolean;
   orders: ApiOrderItem[];
   availableMonths?: string[];
   selectedMonth: string;
@@ -78,6 +79,7 @@ function formatMonthLabel(ym: string): string {
 }
 
 export function OrdersTable({
+  pageScoped = false,
   orders = [],
   availableMonths = [],
   selectedMonth,
@@ -225,7 +227,7 @@ export function OrdersTable({
         </div>
 
         {/* Row 3: Month Revenue Highlight Banner (when a specific month is selected) */}
-        {selectedMonth !== 'all' && (
+        {selectedMonth !== 'all' && !pageScoped && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-gradient-to-r from-violet-50 to-emerald-50/60 dark:from-violet-950/30 dark:to-emerald-950/20 border border-violet-200/80 dark:border-violet-900/40 text-xs text-[#1c192c] dark:text-[#f4eeff]">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">

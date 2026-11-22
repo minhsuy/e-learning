@@ -85,6 +85,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   try {
     const res = await fetch(`${BASE_URL}/api/users/access_token`, {
       method: 'POST',
+      signal: AbortSignal.timeout(12000),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -197,9 +198,11 @@ export async function apiRequest<T = unknown>(
 
   // Handle 401 Unauthorized with token refresh mechanism
   if (res.status === 401 && !skipRefresh && !skipAuth) {
-    const { message } = extractErrorMessage(responseData, 401);
-
-    if (message.includes('jwt expired')) {
+    // Inspect the original middleware error before translating it for display.
+    const rawError = responseData && typeof responseData === 'object'
+      ? responseData as { error?: unknown; message?: unknown }
+      : null;
+    if (rawError?.error === 'jwt expired' || rawError?.message === 'jwt expired') {
       if (!isRefreshing) {
         isRefreshing = true;
         const newToken = await refreshAccessToken();

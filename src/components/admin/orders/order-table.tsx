@@ -1,4 +1,5 @@
 'use client';
+import { canManageManualOrder, orderPaymentMethodLabel } from '@/lib/order-actions';
 
 import React, { useState } from 'react';
 import Image from 'next/image';
@@ -323,9 +324,20 @@ export function OrderTable({
                       </span>
                     )}
                     {isPending && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold',
+                          order.paymentMethod?.toLowerCase() === 'sepay_bank_transfer'
+                            ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300'
+                            : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                        )}
+                      >
                         <Clock className="w-3 h-3" />
-                        <span>Chờ duyệt</span>
+                        <span>
+                          {order.paymentMethod?.toLowerCase() === 'sepay_bank_transfer'
+                            ? 'Chờ thanh toán'
+                            : 'Chờ duyệt'}
+                        </span>
                       </span>
                     )}
                     {isRejected && (
@@ -345,19 +357,29 @@ export function OrderTable({
 
                   {/* Trạng thái thanh toán */}
                   <td className="py-3.5 px-4">
-                    <span
-                      className={cn(
-                        'text-[11px] font-medium flex items-center gap-1',
-                        isCompleted && 'text-emerald-700 dark:text-emerald-400',
-                        isPending && 'text-amber-700 dark:text-amber-400',
-                        isRejected && 'text-rose-700 dark:text-rose-400'
-                      )}
-                    >
-                      <CreditCard className="w-3 h-3" />
-                      <span>
-                        {isCompleted ? 'Đã thanh toán' : isPending ? 'Chờ thanh toán' : 'Đã hủy'}
+                    <div className="space-y-0.5">
+                      <span
+                        className={cn(
+                          'text-[11px] font-medium flex items-center gap-1',
+                          isCompleted && 'text-emerald-700 dark:text-emerald-400',
+                          isPending && 'text-amber-700 dark:text-amber-400',
+                          isRejected && 'text-rose-700 dark:text-rose-400'
+                        )}
+                      >
+                        <CreditCard className="w-3 h-3 shrink-0" />
+                        <span>{orderPaymentMethodLabel(order.paymentMethod)}</span>
                       </span>
-                    </span>
+                      {order.paymentCode && (
+                        <p className="text-[10px] font-mono text-[#7240b8] dark:text-[#a87ffb]">
+                          Mã TT: {order.paymentCode}
+                        </p>
+                      )}
+                      {order.paidAt && (
+                        <p className="text-[10px] text-[#8e849e] dark:text-[#8d8299]">
+                          TT lúc: {formatDate(order.paidAt)}
+                        </p>
+                      )}
+                    </div>
                   </td>
 
                   {/* Hành động */}
@@ -374,7 +396,7 @@ export function OrderTable({
                         <Eye className="w-4 h-4" />
                       </button>
 
-                      {isPending && (
+                      {canManageManualOrder(order) && (
                         <>
                           <button
                             onClick={() => onOpenStatusModal(order, 'completed')}
@@ -500,7 +522,7 @@ export function OrderTable({
                     Chi tiết
                   </button>
 
-                  {isPending && (
+                  {canManageManualOrder(order) && (
                     <>
                       <button
                         onClick={() => onOpenStatusModal(order, 'completed')}
